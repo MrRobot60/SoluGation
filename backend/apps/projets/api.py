@@ -15,6 +15,7 @@ from apps.referentiels.api import referentiels_accessibles
 from apps.referentiels.models import Mesure
 
 from .checklist import generer_checklist
+from .tableau_de_bord import tableau_de_bord as calculer_tableau_de_bord
 from .models import (MAX_REFERENTIELS_PAR_PROJET, ActeurProjet, DocumentAttendu, Projet, ProjetReferentiel,
                      StatutMesure)
 
@@ -110,6 +111,11 @@ class ProjetViewSet(JournaliseMixin, mixins.CreateModelMixin, mixins.ListModelMi
         projet = serializer.save(organisation=u.organisation, cree_par=u)
         journaliser(self.request, JournalAudit.Action.CREATION, projet, projet,
                     {"nom": projet.nom, "referentiels": [str(r.pk) for r in projet.referentiels.all()]})
+
+    @action(detail=True, methods=["get"], url_path="tableau-de-bord")
+    def tableau_de_bord(self, request, pk=None):
+        """Agrégats du tableau de bord, vus par l'utilisateur connecté (« Pour vous » = ses tâches et documents)."""
+        return Response(calculer_tableau_de_bord(self.get_object(), request.user))
 
     @action(detail=True, methods=["post"], url_path="generer-checklist")
     def generer_checklist(self, request, pk=None):

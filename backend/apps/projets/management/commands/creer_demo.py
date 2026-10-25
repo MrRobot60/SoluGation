@@ -7,7 +7,9 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
+from apps.ai.models import AnalyseIA, ResultatAnalyseMesure
 from apps.audit.models import JournalAudit
 from apps.comptes.models import Organisation, Role, Utilisateur
 from apps.projets.models import ActeurProjet, DocumentAttendu, Projet, ProjetReferentiel, StatutMesure
@@ -63,7 +65,8 @@ class Command(BaseCommand):
             },
         )
         if not cree:
-            self.stdout.write("Démo déjà présente : rien à faire.")
+            self._enrichir(projet, admin, referentiels)
+            self.stdout.write("Démo déjà présente : compléments vérifiés.")
             return
         for ref in referentiels.values():
             ProjetReferentiel.objects.create(projet=projet, referentiel=ref)
@@ -92,4 +95,39 @@ class Command(BaseCommand):
                 preuve_attendue="Procédure validée et preuve de mise en œuvre.", priorite=Tache.Priorite.HAUTE,
             )
         JournalAudit.enregistrer(org, JournalAudit.Action.CREATION, projet, acteur=admin, projet=projet, donnees={"source": "creer_demo"})
+        self._enrichir(projet, admin, referentiels)
         self.stdout.write(self.style.SUCCESS(f"Démo créée : organisation « {org} », projet « {projet} », compte {email}."))
+
+    def _enrichir(self, projet, admin, referentiels):
+        """Évaluations sur tous les référentiels, analyse IA à valider, tâches de l'admin (dont une en retard)."""
+        cycle = [StatutMesure.Statut.CONFORME] * 4 + [StatutMesure.Statut.PARTIEL] * 2 + [
+            StatutMesure.Statut.MANQUANT, StatutMesure.Statut.NON_APPLICABLE]
+        for ref, part in ((referentiels["rgs"], 0.75), (referentiels["owasp-asvs"], 0.7), (referentiels["hygiene-anssi"], 0.85)):
+            mesures = list(ref.mesures.order_by("ordre"))
+            for i, mesure in enumerate(mesures[: int(len(mesures) * part)]):
+                StatutMesure.objects.get_or_create(projet=projet, mesure=mesure,
+                                                   defaults={"statut": cycle[i % len(cycle)], "evalue_par": admin})
+
+        if not AnalyseIA.objects.filter(projet=projet).exists():
+            analyse = AnalyseIA.objects.create(
+                projet=projet, type_analyse=AnalyseIA.Type.ANALYSE_DOCUMENTAIRE, etat=AnalyseIA.Etat.TERMINEE,
+                fournisseur="démo", modele="démo", version_prompt="0", demandee_par=admin,
+                debut_le=timezone.now() - timedelta(hours=2), fin_le=timezone.now() - timedelta(hours=2),
+            )
+            for ref, ident, couverture in (("hygiene-anssi", "M04", "couvert"), ("rgs", "§2.3", "partiel"),
+                                           ("hygiene-anssi", "M37", "absent")):
+                ResultatAnalyseMesure.objects.create(
+                    projet=projet, analyse=analyse, mesure=Mesure.objects.get(referentiel=referentiels[ref], identifiant=ident),
+                    couverture=couverture, justification="Exemple de démonstration.",
+                )
+
+        plan = ActionPlan.objects.get(projet=projet)
+        chef = ActeurProjet.objects.get(projet=projet, utilisateur=admin)
+        hygiene = referentiels["hygiene-anssi"]
+        for ident, jours in (("M12", -5), ("M03", 30)):
+            mesure = Mesure.objects.get(referentiel=hygiene, identifiant=ident)
+            Tache.objects.get_or_create(
+                projet=projet, plan=plan, mesure=mesure, responsable=chef,
+                defaults={"titre": mesure.intitule[:300], "echeance": date.today() + timedelta(days=jours),
+                          "preuve_attendue": "Procédure et capture de configuration", "priorite": Tache.Priorite.HAUTE},
+            )

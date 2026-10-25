@@ -357,3 +357,55 @@ class AuthApiTests(BaseApi):
         Utilisateur.objects.create_superuser(email="staff@x.test", password="mot-de-passe-de-test-1")
         reponse = APIClient().post("/api/auth/connexion/", {"email": "staff@x.test", "password": "mot-de-passe-de-test-1"}, format="json")
         self.assertEqual(reponse.status_code, 400)
+
+
+class TableauDeBordApiTests(BaseApi):
+    def setUp(self):
+        super().setUp()
+        from datetime import date, timedelta
+
+        from apps.ai.models import AnalyseIA, ResultatAnalyseMesure
+        from apps.projets.models import StatutMesure
+        from apps.suivi.models import ActionPlan, Tache
+
+        self.projet = self.creer_projet(self.api_a, referentiels=[self.rgs, self.hygiene])
+        self.acteur = ActeurProjet.objects.get(projet=self.projet, utilisateur=self.user_a)
+        StatutMesure.objects.create(projet=self.projet, mesure=self.mesure_rgs, statut="conforme")
+        plan = ActionPlan.objects.create(projet=self.projet)
+        hier = date.today() - timedelta(days=1)
+        Tache.objects.create(projet=self.projet, plan=plan, titre="En retard", responsable=self.acteur, echeance=hier)
+        Tache.objects.create(projet=self.projet, plan=plan, titre="Close", responsable=self.acteur,
+                             statut=Tache.Statut.TERMINEE)
+        autre = ActeurProjet.objects.create(projet=self.projet, nom="Externe", email="x@x.test",
+                                            role=role(Role.Portee.PROJET, "rssi"))
+        Tache.objects.create(projet=self.projet, plan=plan, titre="Pas pour moi", responsable=autre)
+        DocumentAttendu.objects.create(projet=self.projet, intitule="PSSI", responsable=self.acteur,
+                                       echeance=date.today() + timedelta(days=3))
+        analyse = AnalyseIA.objects.create(projet=self.projet, type_analyse="analyse_documentaire", fournisseur="t",
+                                           modele="t", version_prompt="1", demandee_par=self.user_a)
+        ResultatAnalyseMesure.objects.create(projet=self.projet, analyse=analyse, mesure=self.mesure_rgs,
+                                             couverture="partiel", justification="x")
+
+    def test_agregats(self):
+        r = self.api_a.get(f"/api/projets/{self.projet.id}/tableau-de-bord/")
+        self.assertEqual(r.status_code, 200)
+        d = r.data
+        rgs = next(x for x in d["referentiels"] if x["code"] == "rgs")
+        self.assertEqual(rgs["statuts"], {"conforme": 1, "partiel": 0, "manquant": 0, "non_applicable": 0, "non_evalue": 0})
+        self.assertEqual(d["evaluation"], {"evaluees": 1, "total": 2})
+        self.assertEqual(d["taches"], {"ouvertes": 2, "en_retard": 1})
+        self.assertEqual(d["echeances"]["prochain_document"]["intitule"], "PSSI")
+        self.assertEqual(d["a_valider"]["total"], 1)
+        self.assertEqual(d["a_valider"]["conclusions"][0]["couverture"], "partiel")
+
+    def test_pour_vous_ne_contient_que_mes_elements(self):
+        d = self.api_a.get(f"/api/projets/{self.projet.id}/tableau-de-bord/").data
+        titres = [e["titre"] for e in d["pour_vous"]]
+        self.assertEqual(titres[0], "En retard")  # le retard passe en tête
+        self.assertIn("PSSI", titres)
+        self.assertNotIn("Pas pour moi", titres)
+        self.assertNotIn("Close", titres)
+        self.assertTrue(any(e["type"] == "validation_ia" for e in d["pour_vous"]))
+
+    def test_isolation(self):
+        self.assertEqual(self.api_b.get(f"/api/projets/{self.projet.id}/tableau-de-bord/").status_code, 404)
