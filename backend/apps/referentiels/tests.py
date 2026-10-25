@@ -1,3 +1,4 @@
+import unittest
 import json
 import tempfile
 from pathlib import Path
@@ -110,3 +111,86 @@ class ImportIsoTests(BaseImport):
         ref = Iso27001(fichier=self.csv(avec_texte=False), organisation=org).importer().referentiel
         self.assertFalse(ref.texte_embarque)
         self.assertIsNone(ref.mesures.first().texte_officiel)
+
+
+II901_EXTRAIT = """Annexe 1 -Règles pour les entités situées hors du champ d'application de la PSSIE 9
+Po litiqw:. organisation. goun:rnancc
+Objecti[l :
+Mettre en place une organisation adéquate,
+garantissant la prise en compte de la sécurité.
+Organisation SSI
+ORG-SSI : organisation de la SSI. Une organisation dédiée est déployée.
+Acteurs SSI
+POT -AMOY : fourniture de supports amovibles. Des supports
+sont fournis aux agents :
+- la gestion des comptes ;
+12
+<<PAGE>>
+Objecti[2:
+Faire des personnes les maillons forts des SI.
+DEY -FIL T -APPL : filtrage applicatif. Il est recommandé de filtrer.
+Annexe 2 - Différentes classes de réseau
+"""
+
+
+class AnalyseIi901Tests(TestCase):
+    def setUp(self):
+        from apps.referentiels.importeurs.ii901 import Ii901
+
+        self.importeur = Ii901()
+        self.importeur.nb_objectifs, self.importeur.nb_regles = 2, 3
+
+    def test_regles_objectifs_et_corrections_ocr(self):
+        mesures = {m.identifiant: m for m in self.importeur.analyser(II901_EXTRAIT)}
+        self.assertEqual(list(mesures), ["ORG-SSI", "PDT-AMOV", "DEV-FILT-APPL"])
+        org = mesures["ORG-SSI"]
+        self.assertEqual(org.intitule, "Organisation de la SSI")
+        self.assertTrue(org.categorie.startswith("Objectif 1 — Mettre en place une organisation adéquate, garantissant"))
+        self.assertNotIn("Acteurs SSI", org.texte)  # intertitre écarté
+        self.assertIn("- la gestion des comptes;", mesures["PDT-AMOV"].texte)
+        self.assertTrue(mesures["DEV-FILT-APPL"].categorie.startswith("Objectif 2 —"))
+
+    def test_comptage_controle(self):
+        self.importeur.nb_regles = 4
+        with self.assertRaises(ErreurImport):
+            self.importeur.analyser(II901_EXTRAIT)
+
+
+class AnalyseRgsTests(TestCase):
+    def test_regles_recommandations_et_identifiant_reutilise(self):
+        from apps.referentiels.importeurs.rgs import Rgs
+
+        lignes = [
+            "2.1 Règles générales",
+            "RègleImpact-1. L'impact de chaque clé doit",
+            "être évalué.",
+            "Justification :",
+            "• texte de justification ignoré",
+            "RecomControle-1. Il est recommandé de contrôler.",
+            "RecomControle-1. Autre recommandation, même identifiant.",
+        ]
+        mesures = Rgs.analyser_annexe(lignes, "B2", "Annexe B2")
+        self.assertEqual([m.identifiant for m in mesures], ["B2-RègleImpact-1", "B2-RecomControle-1", "B2-RecomControle-1-bis"])
+        self.assertEqual(mesures[0].texte, "L'impact de chaque clé doit être évalué.")
+        self.assertEqual(mesures[0].niveaux, ["obligatoire"])
+        self.assertEqual(mesures[1].niveaux, ["recommandé"])
+        self.assertEqual(mesures[0].categorie, "Annexe B2 › 2.1 Règles générales")
+
+
+SOURCES = Path(__file__).resolve().parents[3] / "data" / "sources"
+
+
+@unittest.skipUnless((SOURCES / "ii901").exists() and (SOURCES / "rgs").exists(), "PDF officiels absents (dépôt manuel)")
+class SourcesReellesTests(TestCase):
+    """Vérifie les parseurs sur les vrais PDF quand ils sont déposés dans data/sources/."""
+
+    def test_ii901(self):
+        from apps.referentiels.importeurs.ii901 import Ii901
+
+        mesures = Ii901(fichier=SOURCES / "ii901/2015/cir_39217.pdf").lire(SOURCES / "ii901/2015/cir_39217.pdf")
+        self.assertEqual(len(mesures), 178)
+
+    def test_rgs(self):
+        from apps.referentiels.importeurs.rgs import Rgs
+
+        self.assertEqual(len(Rgs().lire(SOURCES / "rgs/2.0")), 155)

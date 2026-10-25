@@ -5,7 +5,10 @@ from apps.referentiels.importeurs import IMPORTEURS, ErreurImport
 
 
 class Command(BaseCommand):
-    help = "Importe un référentiel depuis sa source officielle (idempotent). « libres » = toutes les sources téléchargeables."
+    help = (
+        "Importe un référentiel depuis sa source officielle (idempotent). « libres » = toutes les sources libres : "
+        "téléchargées automatiquement, ou déposées à la main dans data/sources/<code>/<version>/ (II 901, RGS)."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("code", choices=sorted(IMPORTEURS) + ["libres"])
@@ -18,7 +21,7 @@ class Command(BaseCommand):
             org = Organisation.objects.filter(slug=organisation).first()
             if org is None:
                 raise CommandError(f"Organisation inconnue : {organisation}")
-        codes = [c for c, i in IMPORTEURS.items() if i.url] if code == "libres" else [code]
+        codes = [c for c, i in IMPORTEURS.items() if not i.prive] if code == "libres" else [code]
         for c in codes:
             try:
                 resultat = IMPORTEURS[c](fichier=fichier, organisation=org).importer()

@@ -34,6 +34,10 @@ class Resultat:
 
 
 def sha256_fichier(chemin: Path) -> str:
+    """Empreinte d'un fichier, ou d'un dossier (empreinte des empreintes des fichiers triés par nom)."""
+    if chemin.is_dir():
+        lignes = "".join(f"{f.name}:{sha256_fichier(f)}\n" for f in sorted(chemin.iterdir()) if f.is_file())
+        return hashlib.sha256(lignes.encode()).hexdigest()
     h = hashlib.sha256()
     with chemin.open("rb") as f:
         for bloc in iter(lambda: f.read(1 << 20), b""):
@@ -42,8 +46,9 @@ def sha256_fichier(chemin: Path) -> str:
 
 
 class Importeur:
-    """Une sous-classe par référentiel. `url` vide = pas de téléchargement automatique,
-    le fichier doit être fourni (`--fichier`)."""
+    """Une sous-classe par référentiel. `url` vide = pas de téléchargement automatique : le fichier
+    (ou le dossier si `fichiers_attendus`) est déposé à la main dans data/sources/<code>/<version>/
+    ou fourni via `--fichier`."""
 
     code: str
     nom: str
@@ -53,6 +58,7 @@ class Importeur:
     url: str = ""
     url_reference: str = ""  # page officielle affichée dans l'appli
     nom_fichier: str = ""
+    fichiers_attendus: tuple[str, ...] = ()  # source multi-fichiers : on travaille sur le dossier
     texte_embarque = True
     prive = False  # copie licenciée : fichier obligatoirement sous data/private/
 
@@ -68,20 +74,36 @@ class Importeur:
     def obtenir_fichier(self) -> Path:
         if self.fichier:
             chemin = self.fichier.resolve()
-            if not chemin.is_file():
-                raise ErreurImport(f"Fichier introuvable : {chemin}")
+            if not (chemin.is_dir() if self.fichiers_attendus else chemin.is_file()):
+                raise ErreurImport(f"Introuvable : {chemin}")
             if self.prive and not chemin.is_relative_to((settings.SOLUGATION_DATA_DIR / "private").resolve()):
                 raise ErreurImport("Une copie licenciée doit être placée sous data/private/ (ignoré par git).")
-            return chemin
-        if not self.url:
-            raise ErreurImport(f"Pas de téléchargement automatique pour {self.code} : fournir --fichier.")
+            return self.verifier_dossier(chemin)
+        if self.fichiers_attendus:
+            return self.verifier_dossier(self.dossier_sources())
         chemin = self.dossier_sources() / self.nom_fichier
+        if not self.url:
+            if chemin.is_file():
+                return chemin
+            raise ErreurImport(
+                f"Téléchargement manuel requis : déposer {self.nom_fichier} (depuis {self.url_reference}) "
+                f"dans {self.dossier_sources()} ou passer --fichier."
+            )
         if not chemin.exists():
             chemin.parent.mkdir(parents=True, exist_ok=True)
             requete = urllib.request.Request(self.url, headers={"User-Agent": "SoluGation-import/1.0"})
             with urllib.request.urlopen(requete, timeout=60) as reponse, open(chemin.with_suffix(".part"), "wb") as f:
                 f.write(reponse.read())
             chemin.with_suffix(".part").rename(chemin)
+        return chemin
+
+    def verifier_dossier(self, chemin: Path) -> Path:
+        if self.fichiers_attendus:
+            manquants = [f for f in self.fichiers_attendus if not (chemin / f).is_file()]
+            if manquants:
+                raise ErreurImport(
+                    f"Fichiers manquants dans {chemin} : {', '.join(manquants)} (source : {self.url_reference})."
+                )
         return chemin
 
     def lire(self, chemin: Path) -> list[MesureImportee]:
