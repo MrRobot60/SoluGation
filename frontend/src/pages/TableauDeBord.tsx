@@ -5,7 +5,7 @@ import { useTableauDeBord } from "../api/hooks";
 import type { TableauDeBord as Donnees } from "../api/types";
 import { CarteMesures } from "../composants/CarteMesures";
 import { nomCourt } from "../composants/statuts";
-import { Disposition, EmplacementLogo } from "../composants/Disposition";
+import { Disposition, Logo } from "../composants/Disposition";
 import { IconeCloche, IconeDepot, IconeRecherche } from "../composants/Icones";
 import { Activite, AValider, PourVous } from "../composants/Listes";
 import { Synthese } from "../composants/Synthese";
@@ -49,7 +49,7 @@ function Contenu({ d }: { d: Donnees }) {
   return (
     <div className="flex flex-col">
       <div className="flex h-11 items-center justify-between lg:hidden">
-        <EmplacementLogo />
+        <Logo />
         <div className="verre flex items-center rounded-full p-0.5">
           <BoutonVerre libelle="Notifications" pastille><IconeCloche /></BoutonVerre>
         </div>

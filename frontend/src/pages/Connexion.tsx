@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 
 import { useConnexion, useMoi } from "../api/hooks";
-import { EmplacementLogo } from "../composants/Disposition";
+import { Logo } from "../composants/Disposition";
 
 export function PageConnexion() {
   const { data: moi } = useMoi();
@@ -23,7 +23,7 @@ export function PageConnexion() {
     <main className="flex min-h-dvh items-center justify-center px-4 py-10">
       <form onSubmit={soumettre} className="verre flex w-full max-w-[400px] flex-col gap-5 rounded-verre px-6 pt-8 pb-6 sm:px-8">
         <div className="flex flex-col items-center gap-3 text-center">
-          <EmplacementLogo taille={52} />
+          <Logo taille={64} decoratif />
           <h1 className="text-[28px] font-bold tracking-[-0.03em]">SoluGation</h1>
           <p className="text-[15px] text-texte-2">Connectez-vous pour suivre vos homologations.</p>
         </div>

@@ -8,14 +8,17 @@ import {
   IconeMesures, IconePlus, IconeRapports, IconeReglages, IconeSoleil, IconeTableau, IconeTache,
 } from "./Icones";
 
-/** Emplacement réservé au logo (fourni plus tard). */
-export function EmplacementLogo({ taille = 30 }: { taille?: number }) {
+/** Icône SoluGation : symbole sur tuile claire (lisible en clair comme en sombre), coins façon iOS. */
+export function Logo({ taille = 30, decoratif = false }: { taille?: number; decoratif?: boolean }) {
   return (
-    <div
-      role="img"
-      aria-label="Emplacement du logo"
-      style={{ width: taille, height: taille }}
-      className="shrink-0 rounded-[9px] border-[1.5px] border-dashed border-texte-3"
+    <img
+      src={taille > 64 ? "/marque/icone-512.png" : "/marque/icone-128.png"}
+      alt={decoratif ? "" : "SoluGation"}
+      width={taille}
+      height={taille}
+      style={{ borderRadius: taille * 0.2237 }}
+      className="shrink-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),inset_0_0_0_0.5px_rgb(0_0_0/0.06)] select-none"
+      draggable={false}
     />
   );
 }
@@ -125,7 +128,7 @@ function BarreLaterale({ projetId, referentiels }: { projetId: string; referenti
       className="verre sticky top-3 hidden max-h-[calc(100dvh-24px)] w-[248px] shrink-0 flex-col gap-[22px] overflow-y-auto rounded-verre px-3 pt-[18px] pb-3.5 lg:flex"
     >
       <div className="flex items-center gap-2.5 px-2">
-        <EmplacementLogo />
+        <Logo decoratif />
         <span className="text-[17px] font-bold tracking-[-0.02em]">SoluGation</span>
       </div>
       <SelecteurProjet projetId={projetId} />

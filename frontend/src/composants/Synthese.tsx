@@ -7,7 +7,7 @@ function Chiffre({ libelle, valeur, suite, note, alerte }: {
   return (
     <div className="flex min-w-0 flex-col gap-0.5 border-separateur px-[18px] py-4 lg:flex-1 lg:gap-1 lg:px-6 lg:py-5 lg:[&:not(:first-child)]:border-l">
       <span className="text-xs text-texte-2 lg:text-[13px]">{libelle}</span>
-      <span className="whitespace-nowrap text-2xl font-bold tracking-[-0.03em] lg:text-[30px]">
+      <span className="whitespace-nowrap text-2xl font-bold tracking-[-0.03em] lg:text-[clamp(22px,1.9vw,30px)]">
         {valeur}
         {suite && <span className="text-sm font-medium text-texte-2 lg:text-base"> {suite}</span>}
       </span>

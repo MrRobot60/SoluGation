@@ -10,6 +10,8 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 5173,
+    // Dans Docker (Colima), les événements fichiers ne traversent pas le montage : scrutation périodique.
+    watch: process.env.SOLUGATION_SCRUTATION ? { usePolling: true, interval: 300 } : undefined,
     proxy: {
       "/api": { target: backend, changeOrigin: true },
     },
