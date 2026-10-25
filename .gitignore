@@ -5,6 +5,8 @@
 
 # Textes de normes sous licence (ISO, etc.) : JAMAIS commités
 data/private/
+# Sources téléchargées par les scripts d'import (reproductibles, non versionnées)
+data/sources/
 
 # Python
 __pycache__/

@@ -119,6 +119,9 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
+# Données d'import des référentiels : sources/ (téléchargements) et private/ (copies licenciées).
+SOLUGATION_DATA_DIR = Path(env("SOLUGATION_DATA_DIR", default=str(BASE_DIR.parent / "data")))
+
 # Upload : liste blanche et taille max (contrôles appliqués côté API, semaine 2).
 SOLUGATION_UPLOAD_MAX_OCTETS = env("UPLOAD_MAX_MO") * 1024 * 1024
 SOLUGATION_UPLOAD_TYPES_AUTORISES = {
