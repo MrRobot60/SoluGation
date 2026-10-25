@@ -62,6 +62,11 @@ class ProjetModel(TenantModel):
             if cible is not None and cible.projet_id != self.projet_id:
                 raise ValidationError({nom: "Objet rattaché à un autre projet."})
 
+    def clean(self):
+        super().clean()
+        if self.projet_id:
+            self.verifier_coherence_projet()
+
     def save(self, *args, **kwargs):
         self.organisation_id = self.projet.organisation_id
         self.verifier_coherence_projet()
