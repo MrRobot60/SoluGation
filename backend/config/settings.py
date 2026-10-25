@@ -98,7 +98,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Stockage S3-compatible (MinIO en local, Scaleway en prod). Un préfixe par organisation,
+# Stockage S3-compatible (SeaweedFS en local, Scaleway en prod). Un préfixe par organisation,
 # voir apps.core.models.chemin_fichier.
 AWS_ACCESS_KEY_ID = env("S3_ACCESS_KEY")
 AWS_SECRET_ACCESS_KEY = env("S3_SECRET_KEY")
@@ -111,7 +111,7 @@ AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = True
 AWS_QUERYSTRING_EXPIRE = 300
 AWS_S3_FILE_OVERWRITE = False
-# Chiffrement au repos côté serveur (ex. "AES256"). Vide en dev si MinIO n'a pas de KMS.
+# Chiffrement au repos côté serveur (ex. "AES256"). Vide en dev.
 if env("S3_SSE"):
     AWS_S3_OBJECT_PARAMETERS = {"ServerSideEncryption": env("S3_SSE")}
 

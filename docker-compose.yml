@@ -17,44 +17,31 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    # TODO : épingler une version précise (MinIO a changé son mode de distribution fin 2025).
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+  # Stockage S3 local : SeaweedFS (MinIO n'est plus distribué en image Docker).
+  # La config d'identité S3 est générée au démarrage depuis S3_ACCESS_KEY / S3_SECRET_KEY du .env.
+  stockage:
+    image: chrislusf/seaweedfs:4.48
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        printf '{"identities":[{"name":"solugation","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}' "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY" > /tmp/s3.json
+        exec weed server -dir=/data -ip.bind=0.0.0.0 -s3 -s3.port=8333 -s3.config=/tmp/s3.json
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
     volumes:
-      - minio_data:/data
+      - stockage_data:/data
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - "127.0.0.1:8333:8333"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status || exit 1"]
       interval: 5s
       timeout: 5s
-      retries: 10
-
-  # Crée le bucket applicatif (privé) au démarrage.
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing local/$${S3_BUCKET} &&
-      mc anonymous set none local/$${S3_BUCKET}
-      "
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      S3_BUCKET: ${S3_BUCKET}
+      retries: 20
 
   backend:
     build: ./backend
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python manage.py migrate --noinput && python manage.py initialiser_stockage && exec python manage.py runserver 0.0.0.0:8000"
     env_file: .env
     environment:
       SOLUGATION_DATA_DIR: /data
@@ -66,8 +53,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+      stockage:
+        condition: service_healthy
 
   frontend:
     image: node:24-alpine
@@ -85,5 +72,5 @@ services:
 
 volumes:
   postgres_data:
-  minio_data:
+  stockage_data:
   frontend_node_modules:
