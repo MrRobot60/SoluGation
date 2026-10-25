@@ -4,7 +4,7 @@ import { Link, NavLink, useNavigate, useParams } from "react-router";
 import { useDeconnexion, useMoi, useProjets } from "../api/hooks";
 import { useTheme, type ChoixTheme } from "../lib/theme";
 import {
-  IconeAuto, IconeBouclier, IconeCalendrier, IconeChevronHautBas, IconeCouches, IconeDocument, IconeLune,
+  IconeAuto, IconeBouclier, IconeCalendrier, IconeChevronHautBas, IconeCloche, IconeCouches, IconeDocument, IconeLune,
   IconeMesures, IconePlus, IconeRapports, IconeReglages, IconeSoleil, IconeTableau, IconeTache,
 } from "./Icones";
 
@@ -220,12 +220,29 @@ function BarreOnglets({ projetId }: { projetId: string }) {
   );
 }
 
+/** Mobile : logo, sélecteur de projet (avec « Nouveau projet ») et notifications, sur toutes les pages. */
+function BarreMobile({ projetId }: { projetId: string }) {
+  return (
+    <div className="mb-4 flex items-center gap-2.5 lg:hidden">
+      <Logo />
+      <div className="min-w-0 flex-1"><SelecteurProjet projetId={projetId} /></div>
+      <button type="button" aria-label="Notifications" className="verre relative flex size-11 shrink-0 items-center justify-center rounded-full">
+        <IconeCloche />
+        <span aria-hidden="true" className="absolute top-2.5 right-[11px] size-2 rounded-full bg-alerte" />
+      </button>
+    </div>
+  );
+}
+
 export function Disposition({ children, referentiels }: { children: ReactNode; referentiels?: ReactNode }) {
   const { projetId = "" } = useParams();
   return (
     <div className="flex min-h-dvh items-start gap-3 p-0 lg:p-3">
       <BarreLaterale projetId={projetId} referentiels={referentiels} />
-      <main className="min-w-0 flex-1 px-4 pt-5 pb-[130px] lg:px-[clamp(12px,2.5vw,36px)] lg:pt-[18px] lg:pb-12">{children}</main>
+      <main className="min-w-0 flex-1 px-4 pt-4 pb-[130px] lg:px-[clamp(12px,2.5vw,36px)] lg:pt-[18px] lg:pb-12">
+        <BarreMobile projetId={projetId} />
+        {children}
+      </main>
       <BarreOnglets projetId={projetId} />
     </div>
   );

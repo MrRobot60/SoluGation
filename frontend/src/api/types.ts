@@ -137,3 +137,37 @@ export interface NouveauProjet {
   acteurs: ActeurInitial[];
   generer_checklist: boolean;
 }
+
+export type StatutDocument = "attendu" | "depose" | "valide" | "refuse" | "non_applicable";
+
+export interface DocumentAttendu {
+  id: string;
+  projet: string;
+  intitule: string;
+  description: string;
+  type_document: string;
+  mesures_couvertes: { id: string; identifiant: string; intitule: string; referentiel: string }[];
+  responsable: string | null;
+  responsable_nom: string;
+  responsable_role: string;
+  echeance: string | null;
+  statut: StatutDocument;
+  obligatoire: boolean;
+  origine: "generee" | "manuelle";
+  nb_versions: number;
+}
+
+export interface DocumentDepose {
+  id: string;
+  projet: string;
+  document_attendu: string | null;
+  version: number;
+  nom_original: string;
+  type_mime: string;
+  taille: number;
+  sha256: string;
+  depose_par: string;
+  depose_par_nom: string;
+  depose_le: string;
+  commentaire: string;
+}

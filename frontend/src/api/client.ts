@@ -58,3 +58,36 @@ export async function api<T>(chemin: string, options: { methode?: string; corps?
   if (!reponse.ok) throw new ErreurApi(reponse.status, donnees, messageErreur(donnees, reponse.status));
   return donnees as T;
 }
+
+/** Envoi multipart avec progression (0 à 1). `fetch` ne remonte pas la progression d'un envoi. */
+export async function envoyerFichier<T>(
+  chemin: string,
+  champs: Record<string, string>,
+  fichier: File,
+  surProgression?: (part: number) => void,
+): Promise<T> {
+  await assurerCsrf();
+  const corps = new FormData();
+  Object.entries(champs).forEach(([cle, valeur]) => corps.append(cle, valeur));
+  corps.append("fichier", fichier, fichier.name);
+  return new Promise<T>((resoudre, rejeter) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", chemin);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("X-CSRFToken", lireCookie("csrftoken") ?? "");
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.upload.onprogress = (e) => e.lengthComputable && surProgression?.(e.loaded / e.total);
+    xhr.onerror = () => rejeter(new ErreurApi(0, null, "Envoi interrompu : vérifiez la connexion."));
+    xhr.onload = () => {
+      let donnees: unknown = null;
+      try {
+        donnees = JSON.parse(xhr.responseText);
+      } catch {
+        /* réponse non JSON (coupure par le serveur, page d'erreur) */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resoudre(donnees as T);
+      else rejeter(new ErreurApi(xhr.status, donnees, messageErreur(donnees, xhr.status)));
+    };
+    xhr.send(corps);
+  });
+}

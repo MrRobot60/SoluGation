@@ -7,6 +7,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 
 import { PageAccueil, PageAVenir, Protege } from "./pages/Autres";
 import { PageConnexion } from "./pages/Connexion";
+import { PageDocuments } from "./pages/Documents";
 import { PageNouveauProjet } from "./pages/NouveauProjet";
 import { PageTableauDeBord } from "./pages/TableauDeBord";
 
@@ -20,6 +21,7 @@ const routeur = createBrowserRouter([
       { path: "/", element: <PageAccueil /> },
       { path: "/projets/nouveau", element: <PageNouveauProjet /> },
       { path: "/projets/:projetId", element: <PageTableauDeBord /> },
+      { path: "/projets/:projetId/documents", element: <PageDocuments /> },
       { path: "/projets/:projetId/:rubrique", element: <PageAVenir /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],

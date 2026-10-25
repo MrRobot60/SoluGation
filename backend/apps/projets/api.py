@@ -240,15 +240,41 @@ class StatutMesureViewSet(ProjetScopedViewSet):
         super().perform_update(serializer)
 
 
+def nom_acteur(acteur):
+    if acteur is None:
+        return ""
+    if acteur.utilisateur_id:
+        return str(acteur.utilisateur)
+    return acteur.nom or acteur.email
+
+
 class DocumentAttenduSerializer(ProjetScopedSerializer):
     mesures = ChampFiltre(mesures_accessibles, many=True, required=False)
     nb_versions = serializers.IntegerField(source="versions.count", read_only=True)
+    responsable_nom = serializers.SerializerMethodField()
+    responsable_role = serializers.CharField(source="responsable.role.libelle", read_only=True, default="")
+    mesures_couvertes = serializers.SerializerMethodField()
 
     class Meta:
         model = DocumentAttendu
-        fields = ["id", "projet", "intitule", "description", "type_document", "mesures", "responsable", "echeance",
-                  "statut", "obligatoire", "origine", "nb_versions"]
+        fields = ["id", "projet", "intitule", "description", "type_document", "mesures", "mesures_couvertes",
+                  "responsable", "responsable_nom", "responsable_role", "echeance", "statut", "obligatoire", "origine",
+                  "nb_versions"]
         read_only_fields = ["origine"]
+
+    def get_responsable_nom(self, obj) -> str:
+        return nom_acteur(obj.responsable)
+
+    def get_mesures_couvertes(self, obj) -> list[dict]:
+        return [{"id": m.id, "identifiant": m.identifiant, "intitule": m.intitule, "referentiel": m.referentiel.code}
+                for m in obj.mesures.all()]
+
+    def validate_statut(self, valeur):
+        # Valider ou refuser suppose qu'une version a été déposée.
+        decisions = (DocumentAttendu.Statut.VALIDE, DocumentAttendu.Statut.REFUSE)
+        if valeur in decisions and (self.instance is None or not self.instance.versions.exists()):
+            raise serializers.ValidationError("Aucune version déposée : rien à valider ni à refuser.")
+        return valeur
 
     def create(self, validated_data):
         validated_data["origine"] = DocumentAttendu.Origine.MANUELLE
@@ -256,5 +282,6 @@ class DocumentAttenduSerializer(ProjetScopedSerializer):
 
 
 class DocumentAttenduViewSet(ProjetScopedViewSet):
-    queryset = DocumentAttendu.objects.select_related("responsable").prefetch_related("mesures")
+    queryset = DocumentAttendu.objects.select_related("responsable__utilisateur", "responsable__role").prefetch_related(
+        "mesures__referentiel")
     serializer_class = DocumentAttenduSerializer

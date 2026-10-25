@@ -453,3 +453,34 @@ class AssistantCreationApiTests(BaseApi):
         del donnees["generer_checklist"]
         projet_id = self.api_a.post("/api/projets/", donnees, format="json").data["id"]
         self.assertFalse(DocumentAttendu.objects.filter(projet_id=projet_id).exists())
+
+
+class EcranDocumentsApiTests(BaseApi):
+    def setUp(self):
+        super().setUp()
+        self.projet = self.creer_projet(self.api_a)
+        self.chef = ActeurProjet.objects.get(projet=self.projet)
+        self.attendu = DocumentAttendu.objects.create(projet=self.projet, intitule="PSSI", responsable=self.chef)
+        self.attendu.mesures.add(self.mesure_rgs)
+
+    def test_champs_lisibles(self):
+        d = self.api_a.get(f"/api/documents-attendus/{self.attendu.id}/").data
+        self.assertEqual(d["responsable_nom"], str(self.user_a))
+        self.assertEqual(d["responsable_role"], "Chef de projet")
+        self.assertEqual(d["mesures_couvertes"][0]["identifiant"], "§2.1")
+        depot = self.deposer(self.api_a, self.projet, document_attendu=str(self.attendu.id)).data
+        self.assertEqual(depot["depose_par_nom"], str(self.user_a))
+
+    def test_validation_impossible_sans_version(self):
+        r = self.api_a.patch(f"/api/documents-attendus/{self.attendu.id}/", {"statut": "valide"}, format="json")
+        self.assertEqual(r.status_code, 400)
+
+    def test_refus_puis_nouvelle_version_repasse_en_depose(self):
+        self.deposer(self.api_a, self.projet, document_attendu=str(self.attendu.id))
+        r = self.api_a.patch(f"/api/documents-attendus/{self.attendu.id}/", {"statut": "refuse"}, format="json")
+        self.assertEqual(r.status_code, 200)
+        self.deposer(self.api_a, self.projet, document_attendu=str(self.attendu.id))
+        self.attendu.refresh_from_db()
+        self.assertEqual(self.attendu.statut, DocumentAttendu.Statut.DEPOSE)
+        self.assertTrue(JournalAudit.objects.filter(objet_id=str(self.attendu.id), action="modification",
+                                                    donnees__statut__apres="refuse").exists())

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ErreurApi } from "./client";
-import type { Moi, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, TableauDeBord, Utilisateur } from "./types";
+import { api, envoyerFichier, ErreurApi } from "./client";
+import type { DocumentAttendu, DocumentDepose, Moi, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -68,5 +68,54 @@ export function useCreerProjet() {
   return useMutation({
     mutationFn: (projet: NouveauProjet) => api<ProjetResume>("/api/projets/", { methode: "POST", corps: projet }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["projets"] }),
+  });
+}
+
+export function useDocumentsAttendus(projetId: string | undefined) {
+  return useQuery({
+    queryKey: ["documents-attendus", projetId],
+    queryFn: () => api<Pagine<DocumentAttendu>>(`/api/documents-attendus/?projet=${projetId}&taille=500`),
+    select: (d) => d.results,
+    enabled: Boolean(projetId),
+  });
+}
+
+export function useDepots(projetId: string | undefined) {
+  return useQuery({
+    queryKey: ["documents-deposes", projetId],
+    queryFn: () => api<Pagine<DocumentDepose>>(`/api/documents-deposes/?projet=${projetId}&taille=500`),
+    select: (d) => d.results,
+    enabled: Boolean(projetId),
+  });
+}
+
+function invaliderDocuments(client: ReturnType<typeof useQueryClient>, projetId: string) {
+  for (const cle of ["documents-attendus", "documents-deposes", "tableau-de-bord"]) {
+    client.invalidateQueries({ queryKey: [cle, projetId] });
+  }
+}
+
+export function useDeposer(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fichier, documentAttendu, surProgression }: {
+      fichier: File; documentAttendu?: string; surProgression?: (p: number) => void;
+    }) =>
+      envoyerFichier<DocumentDepose>(
+        "/api/documents-deposes/",
+        { projet: projetId, ...(documentAttendu ? { document_attendu: documentAttendu } : {}) },
+        fichier,
+        surProgression,
+      ),
+    onSuccess: () => invaliderDocuments(client, projetId),
+  });
+}
+
+export function useStatutDocument(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, statut }: { id: string; statut: StatutDocument }) =>
+      api<DocumentAttendu>(`/api/documents-attendus/${id}/`, { methode: "PATCH", corps: { statut } }),
+    onSuccess: () => invaliderDocuments(client, projetId),
   });
 }

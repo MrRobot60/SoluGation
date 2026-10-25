@@ -18,11 +18,12 @@ from .validation import controler
 
 class DocumentDeposeSerializer(ProjetScopedSerializer):
     fichier = serializers.FileField(write_only=True)
+    depose_par_nom = serializers.CharField(source="depose_par.__str__", read_only=True)
 
     class Meta:
         model = DocumentDepose
         fields = ["id", "projet", "document_attendu", "version", "fichier", "nom_original", "type_mime", "taille",
-                  "sha256", "depose_par", "depose_le", "commentaire"]
+                  "sha256", "depose_par", "depose_par_nom", "depose_le", "commentaire"]
         read_only_fields = ["version", "nom_original", "type_mime", "taille", "sha256", "depose_par", "depose_le"]
         # La version est calculée sous verrou dans create() ; l'unicité reste garantie par la contrainte en base.
         validators = []
@@ -45,7 +46,8 @@ class DocumentDeposeSerializer(ProjetScopedSerializer):
         if doc_attendu is not None:
             DocumentAttendu.objects.select_for_update().filter(pk=doc_attendu.pk).first()  # versions séquentielles
             version = (DocumentDepose.objects.filter(document_attendu=doc_attendu).aggregate(m=Max("version"))["m"] or 0) + 1
-            if doc_attendu.statut == DocumentAttendu.Statut.ATTENDU:
+            # Première version, ou nouvelle version après un refus : la pièce repasse en relecture.
+            if doc_attendu.statut in (DocumentAttendu.Statut.ATTENDU, DocumentAttendu.Statut.REFUSE):
                 doc_attendu.statut = DocumentAttendu.Statut.DEPOSE
                 doc_attendu.save(update_fields=["statut", "modifie_le"])
         return DocumentDepose.objects.create(version=version, depose_par=self.context["request"].user, **validated_data)
@@ -61,7 +63,7 @@ class DocumentDeposeViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixi
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
-        qs = DocumentDepose.objects.filter(projet__in=projets_accessibles(self.request.user))
+        qs = DocumentDepose.objects.filter(projet__in=projets_accessibles(self.request.user)).select_related("depose_par")
         p = self.request.query_params
         if p.get("projet"):
             qs = qs.filter(projet_id=p["projet"])
