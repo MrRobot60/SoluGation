@@ -19,11 +19,12 @@
   --sg-groupe: #ffffff;
   --sg-groupe-ombre: 0 1px 2px rgb(0 0 0 / 0.04);
 
-  --sg-accent: #0062c4;
-  --sg-accent-texte: #0062c4;
-  --sg-accent-doux: rgb(0 102 204 / 0.1);
-  --sg-accent-degrade: linear-gradient(180deg, #1a7fe6 0%, #0062c4 100%);
-  --sg-accent-ombre: inset 0 1px 0 rgb(255 255 255 / 0.45), 0 8px 22px rgb(0 98 196 / 0.28);
+  /* Accent tiré du logo : bleu nuit #193A4E → vert d'eau #89AEAB. Contrastes ≥ 4,5:1 vérifiés. */
+  --sg-accent: #2a6074;
+  --sg-accent-texte: #2a6074;
+  --sg-accent-doux: rgb(42 96 116 / 0.1);
+  --sg-accent-degrade: linear-gradient(180deg, #3b6f80 0%, #193a4e 100%);
+  --sg-accent-ombre: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 8px 22px rgb(25 58 78 / 0.3);
   --sg-alerte: #d70015;
 
   /* Statuts de conformité : toujours doublés d'un libellé ou d'une icône dans l'interface. */
@@ -62,11 +63,11 @@
   --sg-groupe: #1c1c1e;
   --sg-groupe-ombre: none;
 
-  --sg-accent: #0066cc;
-  --sg-accent-texte: #6cb0ff;
-  --sg-accent-doux: rgb(10 132 255 / 0.2);
-  --sg-accent-degrade: linear-gradient(180deg, #2b8cff 0%, #0066cc 100%);
-  --sg-accent-ombre: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 8px 24px rgb(10 132 255 / 0.35);
+  --sg-accent: #3b6f80;
+  --sg-accent-texte: #89aeab;
+  --sg-accent-doux: rgb(137 174 171 / 0.14); /* 0,14 : contraste ≥ 4,5:1 même sur le haut du verre */
+  --sg-accent-degrade: linear-gradient(180deg, #3b6f80 0%, #1f4a5e 100%);
+  --sg-accent-ombre: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 8px 24px rgb(59 111 128 / 0.4);
   --sg-alerte: #ff453a;
 
   --sg-conforme: #30d158;
