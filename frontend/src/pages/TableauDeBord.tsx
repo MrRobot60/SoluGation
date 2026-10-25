@@ -11,6 +11,15 @@ import { Activite, AValider, PourVous } from "../composants/Listes";
 import { Synthese } from "../composants/Synthese";
 import { pourcentage } from "../lib/format";
 
+const ETAT_HOMOLOGATION: Record<string, string> = {
+  brouillon: "En préparation",
+  en_cours: "Homologation en cours",
+  en_attente_decision: "En attente de décision",
+  homologue: "Homologué",
+  refuse: "Homologation refusée",
+  archive: "Archivé",
+};
+
 function ReferentielsDuProjet({ d }: { d: Donnees }) {
   return (
     <div className="flex flex-col gap-2.5 px-3">
@@ -58,7 +67,7 @@ function Contenu({ d }: { d: Donnees }) {
       <div className="mt-3.5 flex flex-wrap items-start justify-between gap-4 lg:mt-0">
         <div className="flex flex-col gap-1 lg:gap-1.5 lg:pt-2.5">
           <span className="text-[13px] font-semibold text-texte-2">
-            Homologation {p.statut_libelle.toLowerCase()} · {p.type_bien_libelle.toLowerCase()} · niveau {p.niveau_vise_libelle.toLowerCase()}
+            {ETAT_HOMOLOGATION[p.statut] ?? p.statut_libelle} · {p.type_bien_libelle.toLowerCase()} · niveau {p.niveau_vise_libelle.toLowerCase()}
           </span>
           <h1 className="text-[34px] leading-[1.06] font-bold tracking-[-0.03em] lg:text-[clamp(32px,4.2vw,48px)] lg:tracking-[-0.035em]">
             {p.nom}

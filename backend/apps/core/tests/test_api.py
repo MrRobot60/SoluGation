@@ -409,3 +409,47 @@ class TableauDeBordApiTests(BaseApi):
 
     def test_isolation(self):
         self.assertEqual(self.api_b.get(f"/api/projets/{self.projet.id}/tableau-de-bord/").status_code, 404)
+
+
+class AssistantCreationApiTests(BaseApi):
+    def donnees(self, **extra):
+        return {"nom": "Intranet", "type_bien": "si", "niveau_vise": "standard", "ebios_active": True,
+                "referentiels": [str(self.rgs.id)], "generer_checklist": True, **extra}
+
+    def test_projet_acteurs_et_checklist_en_une_requete(self):
+        collegue = f.utilisateur(self.org_a, "rssi@a.test")
+        r = self.api_a.post("/api/projets/", self.donnees(acteurs=[
+            {"utilisateur": str(collegue.id), "role": str(role(Role.Portee.PROJET, "rssi").id)},
+            {"nom": "Direction", "email": "dg@a.test", "role": str(role(Role.Portee.PROJET, "autorite-homologation").id)},
+            {"utilisateur": str(self.user_a.id), "role": str(role(Role.Portee.PROJET, "chef-projet").id)},  # doublon ignoré
+        ]), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        projet = Projet.objects.get(pk=r.data["id"])
+        self.assertEqual(ActeurProjet.objects.filter(projet=projet).count(), 3)
+        self.assertTrue(DocumentAttendu.objects.filter(projet=projet, intitule__startswith="Analyse de risques EBIOS").exists())
+        strategie = DocumentAttendu.objects.get(projet=projet, intitule="Stratégie d'homologation")
+        self.assertEqual(strategie.responsable.utilisateur, self.user_a)
+        autorite = DocumentAttendu.objects.get(projet=projet, intitule="Décision d'homologation signée")
+        self.assertEqual(autorite.responsable.email, "dg@a.test")
+        entree = JournalAudit.objects.get(projet=projet, action="creation", objet_type="projets.Projet")
+        self.assertEqual(entree.donnees["acteurs"], 3)
+        self.assertNotIn("acteurs", r.data)  # champs d'écriture seule
+
+    def test_acteur_d_une_autre_organisation_annule_tout(self):
+        r = self.api_a.post("/api/projets/", self.donnees(acteurs=[
+            {"utilisateur": str(self.user_b.id), "role": str(role(Role.Portee.PROJET, "rssi").id)}]), format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(Projet.objects.filter(nom="Intranet").exists())
+        self.assertFalse(DocumentAttendu.objects.filter(projet__nom="Intranet").exists())
+
+    def test_acteur_sans_compte_ni_email_refuse(self):
+        r = self.api_a.post("/api/projets/", self.donnees(acteurs=[
+            {"nom": "Quelqu'un", "role": str(role(Role.Portee.PROJET, "rssi").id)}]), format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(Projet.objects.filter(nom="Intranet").exists())
+
+    def test_sans_checklist_par_defaut(self):
+        donnees = self.donnees()
+        del donnees["generer_checklist"]
+        projet_id = self.api_a.post("/api/projets/", donnees, format="json").data["id"]
+        self.assertFalse(DocumentAttendu.objects.filter(projet_id=projet_id).exists())

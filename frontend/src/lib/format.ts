@@ -57,6 +57,11 @@ const OBJETS: Record<string, string> = {
 /** Phrase lisible pour une entrée du journal d'audit. */
 export function phraseActivite(e: EntreeActivite): string {
   const objet = `${OBJETS[e.objet_type] ?? ""} « ${e.objet} »`.trim();
+  if (e.objet_type === "projets.Projet" && e.action === "creation" && e.champs.includes("nom")) {
+    return e.nb_checklist
+      ? `${e.acteur} a créé le projet avec sa checklist (${e.nb_checklist} documents attendus).`
+      : `${e.acteur} a créé le projet.`;
+  }
   if (e.nb_checklist) return `${e.acteur} a généré la checklist : ${e.nb_checklist} documents attendus.`;
   switch (e.action) {
     case "creation":

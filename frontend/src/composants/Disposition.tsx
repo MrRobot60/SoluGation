@@ -83,6 +83,12 @@ function SelecteurProjet({ projetId }: { projetId: string }) {
               </Link>
             </li>
           ))}
+          <li className="mt-1 border-t border-separateur pt-1">
+            <Link to="/projets/nouveau" onClick={() => setOuvert(false)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-accent-texte hover:bg-remplissage">
+              <IconePlus taille={16} /> Nouveau projet
+            </Link>
+          </li>
         </ul>
       )}
     </div>

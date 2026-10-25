@@ -87,3 +87,53 @@ export interface EntreeActivite {
   champs: string[];
   nb_checklist: number;
 }
+
+export interface Referentiel {
+  id: string;
+  code: string;
+  nom: string;
+  version: string;
+  editeur: string;
+  licence: string;
+  prive: boolean;
+  nb_mesures: number;
+  nouvelle_version: string | null;
+}
+
+export interface Utilisateur {
+  id: string;
+  email: string;
+  nom_complet: string;
+  fonction: string;
+  is_active: boolean;
+}
+
+export interface Role {
+  id: string;
+  code: string;
+  libelle: string;
+  portee: "organisation" | "projet";
+  lecture_seule: boolean;
+}
+
+export type TypeBien = "application" | "poste_travail" | "si" | "autre";
+export type NiveauVise = "elementaire" | "standard" | "renforce";
+
+export interface ActeurInitial {
+  utilisateur?: string;
+  nom?: string;
+  email?: string;
+  organisme?: string;
+  role: string;
+}
+
+export interface NouveauProjet {
+  nom: string;
+  description: string;
+  type_bien: TypeBien;
+  niveau_vise: NiveauVise;
+  ebios_active: boolean;
+  referentiels: string[];
+  acteurs: ActeurInitial[];
+  generer_checklist: boolean;
+}

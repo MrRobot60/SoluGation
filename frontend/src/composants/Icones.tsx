@@ -142,3 +142,41 @@ export function Chevron() {
     </svg>
   );
 }
+
+export const IconeFenetre = (p: P) => (
+  <Base {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="3" />
+    <path d="M3.5 9.5h17M7 7.2h.01M9.5 7.2h.01" />
+  </Base>
+);
+export const IconePortable = (p: P) => (
+  <Base {...p}>
+    <rect x="5" y="5" width="14" height="10" rx="2" />
+    <path d="M3 19h18" />
+  </Base>
+);
+export const IconeReseau = (p: P) => (
+  <Base {...p}>
+    <rect x="9" y="3.5" width="6" height="5" rx="1.5" />
+    <rect x="3.5" y="15.5" width="6" height="5" rx="1.5" />
+    <rect x="14.5" y="15.5" width="6" height="5" rx="1.5" />
+    <path d="M12 8.5v3.5M6.5 15.5V12h11v3.5" />
+  </Base>
+);
+export const IconePoints = (p: P) => (
+  <Base {...p}>
+    <circle cx="6" cy="12" r="1" fill="currentColor" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" />
+    <circle cx="18" cy="12" r="1" fill="currentColor" />
+  </Base>
+);
+export const IconeCroix = (p: P) => (
+  <Base strokeWidth={2} {...p}>
+    <path d="M7 7l10 10M17 7L7 17" />
+  </Base>
+);
+export const IconeCoche = (p: P) => (
+  <Base strokeWidth={2.4} {...p}>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </Base>
+);

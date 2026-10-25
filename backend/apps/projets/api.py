@@ -48,14 +48,33 @@ def membres(u):
 # --- Projets -----------------------------------------------------------------------------
 
 
+class ActeurInitialSerializer(serializers.Serializer):
+    """Acteur déclaré dans l'assistant de création : membre de l'organisation, ou contact externe (email)."""
+
+    utilisateur = ChampFiltre(membres, required=False, allow_null=True)
+    nom = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    organisme = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    role = ChampFiltre(roles_projet)
+
+    def validate(self, attrs):
+        if not attrs.get("utilisateur") and not attrs.get("email"):
+            raise serializers.ValidationError("Un acteur sans compte doit avoir un email.")
+        return attrs
+
+
 class ProjetSerializer(serializers.ModelSerializer):
     referentiels = ChampFiltre(referentiels_accessibles, many=True)
+    # Assistant de création : acteurs et checklist créés dans la même transaction que le projet.
+    acteurs = ActeurInitialSerializer(many=True, write_only=True, required=False)
+    generer_checklist = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = Projet
         fields = ["id", "nom", "description", "type_bien", "niveau_vise", "statut", "referentiels", "ebios_active",
                   "notifications_actives", "calendrier_actif", "periodicite_revue_mois", "date_prochaine_revue",
-                  "decision", "decision_par", "date_decision", "date_fin_validite", "cree_par", "cree_le", "modifie_le"]
+                  "decision", "decision_par", "date_decision", "date_fin_validite", "cree_par", "cree_le", "modifie_le",
+                  "acteurs", "generer_checklist"]
         # La décision d'homologation fera l'objet d'une action dédiée (autorité d'homologation), pas d'un PATCH.
         read_only_fields = ["decision", "decision_par", "date_decision", "date_fin_validite", "cree_par", "cree_le", "modifie_le"]
 
@@ -75,16 +94,28 @@ class ProjetSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         referentiels = validated_data.pop("referentiels")
+        acteurs = validated_data.pop("acteurs", [])
+        generer = validated_data.pop("generer_checklist", False)
         projet = Projet.objects.create(**validated_data)
         for ref in referentiels:
             ProjetReferentiel.objects.create(projet=projet, referentiel=ref)
         # Le créateur devient chef de projet : sans cela il ne verrait pas son propre projet.
         role = Role.objects.get(organisation=None, portee=Role.Portee.PROJET, code=ROLE_CREATEUR)
         ActeurProjet.objects.create(projet=projet, utilisateur=projet.cree_par, role=role)
+        deja = {(projet.cree_par_id, role.id)}
+        for a in acteurs:
+            cle = (getattr(a.get("utilisateur"), "id", None), a["role"].id)
+            if cle[0] is not None and cle in deja:
+                continue  # même personne, même rôle : ignoré plutôt que refusé
+            deja.add(cle)
+            ActeurProjet.objects.create(projet=projet, **a)
+        projet.checklist_creee = generer_checklist(projet) if generer else []
         return projet
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        validated_data.pop("acteurs", None)
+        validated_data.pop("generer_checklist", None)
         referentiels = validated_data.pop("referentiels", None)
         projet = super().update(instance, validated_data)
         if referentiels is not None:
@@ -109,8 +140,11 @@ class ProjetViewSet(JournaliseMixin, mixins.CreateModelMixin, mixins.ListModelMi
     def perform_create(self, serializer):
         u = self.request.user
         projet = serializer.save(organisation=u.organisation, cree_par=u)
-        journaliser(self.request, JournalAudit.Action.CREATION, projet, projet,
-                    {"nom": projet.nom, "referentiels": [str(r.pk) for r in projet.referentiels.all()]})
+        journaliser(self.request, JournalAudit.Action.CREATION, projet, projet, {
+            "nom": projet.nom, "referentiels": [str(r.pk) for r in projet.referentiels.all()],
+            "acteurs": ActeurProjet.objects.filter(projet=projet).count(),
+            "checklist": [d.intitule for d in projet.checklist_creee],
+        })
 
     @action(detail=True, methods=["get"], url_path="tableau-de-bord")
     def tableau_de_bord(self, request, pk=None):

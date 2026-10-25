@@ -27,6 +27,9 @@ export function PageAccueil() {
       <div className="verre max-w-md rounded-verre p-8 text-center">
         <h1 className="text-xl font-bold">Aucun projet pour le moment</h1>
         <p className="mt-2 text-sm text-texte-2">Vous n'êtes acteur d'aucun projet d'homologation.</p>
+        <Link to="/projets/nouveau" className="bouton-accent mt-6 inline-flex h-[50px] items-center rounded-full px-6 text-[15px] font-semibold">
+          Créer un projet
+        </Link>
       </div>
     </main>
   );
