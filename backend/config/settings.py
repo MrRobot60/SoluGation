@@ -14,6 +14,9 @@ env = environ.Env(
     S3_SSE=(str, ""),
     UPLOAD_MAX_MO=(int, 50),
 )
+# Les variables déjà présentes dans l'environnement priment sur le fichier .env.
+if (BASE_DIR.parent / ".env").exists():
+    environ.Env.read_env(BASE_DIR.parent / ".env")
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
