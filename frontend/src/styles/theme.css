@@ -1,0 +1,179 @@
+/*
+ * Thème SoluGation : SEUL fichier de tokens de design (couleurs, verre, rayons, ombres, flous).
+ * Les composants n'utilisent que les utilitaires générés ici (bg-fond, text-texte-2, verre, rounded-verre…) :
+ * pour changer le style, on modifie ce fichier, jamais les composants.
+ *
+ * Thème : <html data-theme="clair|sombre">, posé avant le rendu par index.html (préférence système par défaut).
+ */
+@import "tailwindcss";
+
+/* ---- Valeurs, mode clair ------------------------------------------------------------- */
+:root {
+  --sg-fond: #eeeff3;
+  --sg-texte: #1d1d1f;
+  --sg-texte-2: #636366;
+  --sg-texte-3: #aeaeb2;
+  --sg-separateur: rgb(60 60 67 / 0.13);
+  --sg-remplissage: rgb(118 118 128 / 0.12);
+  --sg-piste: rgb(118 118 128 / 0.16);
+  --sg-groupe: #ffffff;
+  --sg-groupe-ombre: 0 1px 2px rgb(0 0 0 / 0.04);
+
+  --sg-accent: #0062c4;
+  --sg-accent-texte: #0062c4;
+  --sg-accent-doux: rgb(0 102 204 / 0.1);
+  --sg-accent-degrade: linear-gradient(180deg, #1a7fe6 0%, #0062c4 100%);
+  --sg-accent-ombre: inset 0 1px 0 rgb(255 255 255 / 0.45), 0 8px 22px rgb(0 98 196 / 0.28);
+  --sg-alerte: #d70015;
+
+  /* Statuts de conformité : toujours doublés d'un libellé ou d'une icône dans l'interface. */
+  --sg-conforme: #34a35e;
+  --sg-conforme-texte: #1e7a41;
+  --sg-partiel: #f0b43c;
+  --sg-partiel-texte: #875400;
+  --sg-manquant: #d9483b;
+  --sg-manquant-texte: #b42318;
+  --sg-na: #bdbdc2;
+  --sg-na-texte: #5e5e63;
+  --sg-non-evalue: rgb(0 0 0 / 0.06);
+  --sg-non-evalue-legende: rgb(0 0 0 / 0.12);
+
+  /* Verre (Liquid Glass) : dégradé translucide, reflet sur l'arête haute, flou saturé. */
+  --sg-verre-fond: linear-gradient(180deg, rgb(255 255 255 / 0.62) 0%, rgb(255 255 255 / 0.36) 100%);
+  --sg-verre-fond-barre: linear-gradient(180deg, rgb(255 255 255 / 0.7) 0%, rgb(255 255 255 / 0.5) 100%);
+  --sg-verre-bord: rgb(255 255 255 / 0.75);
+  --sg-verre-ombre: inset 0 1px 0 rgb(255 255 255 / 0.95), inset 0 -1px 0 rgb(255 255 255 / 0.3),
+    0 18px 48px rgb(30 40 60 / 0.12), 0 1px 2px rgb(0 0 0 / 0.05);
+  --sg-verre-opaque: #f8f8fa;
+  --sg-verre-flou: 28px;
+  --sg-verre-saturation: 190%;
+}
+
+/* ---- Valeurs, mode sombre ------------------------------------------------------------ */
+:root[data-theme="sombre"] {
+  color-scheme: dark;
+  --sg-fond: #0b0b0d;
+  --sg-texte: #f5f5f7;
+  --sg-texte-2: #a1a1a6;
+  --sg-texte-3: #636366;
+  --sg-separateur: rgb(84 84 88 / 0.55);
+  --sg-remplissage: rgb(118 118 128 / 0.24);
+  --sg-piste: rgb(255 255 255 / 0.12);
+  --sg-groupe: #1c1c1e;
+  --sg-groupe-ombre: none;
+
+  --sg-accent: #0066cc;
+  --sg-accent-texte: #6cb0ff;
+  --sg-accent-doux: rgb(10 132 255 / 0.2);
+  --sg-accent-degrade: linear-gradient(180deg, #2b8cff 0%, #0066cc 100%);
+  --sg-accent-ombre: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 8px 24px rgb(10 132 255 / 0.35);
+  --sg-alerte: #ff453a;
+
+  --sg-conforme: #30d158;
+  --sg-conforme-texte: #5fe08a;
+  --sg-partiel: #e6b400;
+  --sg-partiel-texte: #ffd60a;
+  --sg-manquant: #ff5e55;
+  --sg-manquant-texte: #ff8a80;
+  --sg-na: #48484a;
+  --sg-na-texte: #aeaeb2;
+  --sg-non-evalue: rgb(255 255 255 / 0.09);
+  --sg-non-evalue-legende: rgb(255 255 255 / 0.18);
+
+  --sg-verre-fond: linear-gradient(180deg, rgb(72 72 78 / 0.46) 0%, rgb(38 38 42 / 0.36) 100%);
+  --sg-verre-fond-barre: linear-gradient(180deg, rgb(60 60 66 / 0.58) 0%, rgb(30 30 34 / 0.52) 100%);
+  --sg-verre-bord: rgb(255 255 255 / 0.13);
+  --sg-verre-ombre: inset 0 1px 0 rgb(255 255 255 / 0.2), inset 0 -1px 0 rgb(255 255 255 / 0.04),
+    0 18px 48px rgb(0 0 0 / 0.55);
+  --sg-verre-opaque: #2c2c2e;
+}
+
+/* ---- Tokens exposés à Tailwind ------------------------------------------------------- */
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, system-ui, sans-serif;
+
+  --color-fond: var(--sg-fond);
+  --color-texte: var(--sg-texte);
+  --color-texte-2: var(--sg-texte-2);
+  --color-texte-3: var(--sg-texte-3);
+  --color-separateur: var(--sg-separateur);
+  --color-remplissage: var(--sg-remplissage);
+  --color-piste: var(--sg-piste);
+  --color-groupe: var(--sg-groupe);
+  --color-accent: var(--sg-accent);
+  --color-accent-texte: var(--sg-accent-texte);
+  --color-accent-doux: var(--sg-accent-doux);
+  --color-alerte: var(--sg-alerte);
+
+  --color-conforme: var(--sg-conforme);
+  --color-conforme-texte: var(--sg-conforme-texte);
+  --color-partiel: var(--sg-partiel);
+  --color-partiel-texte: var(--sg-partiel-texte);
+  --color-manquant: var(--sg-manquant);
+  --color-manquant-texte: var(--sg-manquant-texte);
+  --color-na: var(--sg-na);
+  --color-na-texte: var(--sg-na-texte);
+  --color-non-evalue: var(--sg-non-evalue);
+  --color-non-evalue-legende: var(--sg-non-evalue-legende);
+
+  --radius-verre: 28px;
+  --radius-groupe: 22px;
+  --radius-champ: 14px;
+  --radius-case: 4px;
+
+  --shadow-groupe: var(--sg-groupe-ombre);
+  --shadow-accent: var(--sg-accent-ombre);
+
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ---- Utilitaires composés ------------------------------------------------------------ */
+@utility verre {
+  background: var(--sg-verre-fond);
+  border: 1px solid var(--sg-verre-bord);
+  box-shadow: var(--sg-verre-ombre);
+  backdrop-filter: blur(var(--sg-verre-flou)) saturate(var(--sg-verre-saturation));
+  -webkit-backdrop-filter: blur(var(--sg-verre-flou)) saturate(var(--sg-verre-saturation));
+}
+
+@utility verre-barre {
+  background: var(--sg-verre-fond-barre);
+  border: 1px solid var(--sg-verre-bord);
+  box-shadow: var(--sg-verre-ombre);
+  backdrop-filter: blur(22px) saturate(200%);
+  -webkit-backdrop-filter: blur(22px) saturate(200%);
+}
+
+@utility bouton-accent {
+  background: var(--sg-accent-degrade);
+  border: 1px solid rgb(255 255 255 / 0.3);
+  box-shadow: var(--sg-accent-ombre);
+  color: #ffffff;
+}
+
+/* Accessibilité : réglage système « Réduire la transparence ». */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --sg-verre-fond: var(--sg-verre-opaque);
+    --sg-verre-fond-barre: var(--sg-verre-opaque);
+  }
+}
+
+@layer base {
+  html {
+    background: var(--sg-fond);
+    color: var(--sg-texte);
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--sg-accent-texte);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
