@@ -82,6 +82,9 @@ class ProjetReferentiel(ProjetModel):
             models.UniqueConstraint(fields=["projet", "referentiel"], name="projet_referentiel_unique"),
         ]
 
+    def __str__(self):
+        return str(self.referentiel)
+
     def save(self, *args, **kwargs):
         if self.referentiel.organisation_id not in (None, self.projet.organisation_id):
             raise ValidationError("Référentiel privé d'une autre organisation.")
