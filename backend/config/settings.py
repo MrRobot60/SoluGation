@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "drf_spectacular",
     "storages",
     # Applications SoluGation
     "apps.core",
@@ -137,13 +138,29 @@ SOLUGATION_UPLOAD_TYPES_AUTORISES = {
     "image/jpeg": ".jpg",
 }
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_HANDLERS = [
+    "apps.documents.upload.LimiteTailleUpload",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "apps.core.api.pagination.Pagination",
     "PAGE_SIZE": 50,
+    "EXCEPTION_HANDLER": "apps.core.api.base.gestionnaire_exceptions",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"connexion": "10/min"},
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "API SoluGation",
+    "DESCRIPTION": "Pilotage des homologations de sécurité.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 # Durcissement HTTP

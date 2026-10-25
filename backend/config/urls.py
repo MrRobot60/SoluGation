@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import path
+from django.urls import include, path
 
 
 def sante(_request):
@@ -13,4 +13,5 @@ admin.site.site_title = "SoluGation"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/sante/", sante),
+    path("api/", include("config.api")),
 ]
