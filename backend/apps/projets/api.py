@@ -3,11 +3,12 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.audit.models import JournalAudit
 from apps.comptes.models import Role, Utilisateur
-from apps.core.api.acces import peut_ecrire_projet, projets_accessibles
+from apps.core.api.acces import peut_decider_projet, peut_ecrire_projet, projets_accessibles
 from apps.core.api.base import JournaliseMixin, ProjetScopedSerializer, ProjetScopedViewSet
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import EcritureSelonRole, MembreOrganisation
@@ -211,10 +212,12 @@ class ProjetReferentielViewSet(ProjetScopedViewSet):
 
 class StatutMesureSerializer(ProjetScopedSerializer):
     mesure = ChampFiltre(mesures_accessibles)
+    evalue_par_nom = serializers.CharField(source="evalue_par.__str__", read_only=True, default="")
 
     class Meta:
         model = StatutMesure
-        fields = ["id", "projet", "mesure", "statut", "justification", "resultat_analyse", "evalue_par", "evalue_le"]
+        fields = ["id", "projet", "mesure", "statut", "justification", "resultat_analyse", "evalue_par",
+                  "evalue_par_nom", "evalue_le"]
         read_only_fields = ["resultat_analyse", "evalue_par", "evalue_le"]
 
     def validate(self, attrs):
@@ -227,7 +230,7 @@ class StatutMesureSerializer(ProjetScopedSerializer):
 
 
 class StatutMesureViewSet(ProjetScopedViewSet):
-    queryset = StatutMesure.objects.select_related("mesure")
+    queryset = StatutMesure.objects.select_related("mesure", "evalue_par")
     serializer_class = StatutMesureSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
 
@@ -236,7 +239,8 @@ class StatutMesureViewSet(ProjetScopedViewSet):
         super().perform_create(serializer)
 
     def perform_update(self, serializer):
-        serializer.validated_data.update(evalue_par=self.request.user, evalue_le=timezone.now())
+        # Une évaluation reprise à la main n'est plus « d'après une proposition de l'IA ».
+        serializer.validated_data.update(evalue_par=self.request.user, evalue_le=timezone.now(), resultat_analyse=None)
         super().perform_update(serializer)
 
 
@@ -270,7 +274,11 @@ class DocumentAttenduSerializer(ProjetScopedSerializer):
                 for m in obj.mesures.all()]
 
     def validate_statut(self, valeur):
-        # Valider ou refuser suppose qu'une version a été déposée.
+        # Toute décision sur une pièce (valider, refuser, rouvrir, non applicable) est réservée aux décisionnaires.
+        # Le passage automatique en « déposé » se fait au dépôt, pas par cette voie.
+        if self.instance is not None and valeur != self.instance.statut:
+            if not peut_decider_projet(self.context["request"].user, self.instance.projet):
+                raise PermissionDenied("Seuls le RSSI, l'autorité d'homologation ou l'administrateur peuvent statuer sur une pièce.")
         decisions = (DocumentAttendu.Statut.VALIDE, DocumentAttendu.Statut.REFUSE)
         if valeur in decisions and (self.instance is None or not self.instance.versions.exists()):
             raise serializers.ValidationError("Aucune version déposée : rien à valider ni à refuser.")

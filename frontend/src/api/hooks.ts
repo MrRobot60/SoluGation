@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, envoyerFichier, ErreurApi } from "./client";
-import type { DocumentAttendu, DocumentDepose, Moi, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
+import type { DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -117,5 +117,71 @@ export function useStatutDocument(projetId: string) {
     mutationFn: ({ id, statut }: { id: string; statut: StatutDocument }) =>
       api<DocumentAttendu>(`/api/documents-attendus/${id}/`, { methode: "PATCH", corps: { statut } }),
     onSuccess: () => invaliderDocuments(client, projetId),
+  });
+}
+
+export function useMesures(referentielId: string | undefined) {
+  return useQuery({
+    queryKey: ["mesures", referentielId],
+    queryFn: () => toutesLesPages<Mesure>(`/api/mesures/?referentiel=${referentielId}`),
+    enabled: Boolean(referentielId),
+    staleTime: 10 * 60_000,
+  });
+}
+
+export function useEvaluations(projetId: string) {
+  return useQuery({
+    queryKey: ["statuts-mesures", projetId],
+    queryFn: () => toutesLesPages<EvaluationMesure>(`/api/statuts-mesures/?projet=${projetId}`),
+  });
+}
+
+export function usePreuves(projetId: string) {
+  return useQuery({ queryKey: ["preuves", projetId], queryFn: () => toutesLesPages<Preuve>(`/api/preuves/?projet=${projetId}`) });
+}
+
+export function useResultatsIA(projetId: string) {
+  return useQuery({
+    queryKey: ["resultats-ia", projetId],
+    queryFn: () => toutesLesPages<ResultatIA>(`/api/resultats-ia/?projet=${projetId}&statut_validation=a_valider`),
+  });
+}
+
+function invaliderMesures(client: ReturnType<typeof useQueryClient>, projetId: string) {
+  for (const cle of ["statuts-mesures", "preuves", "resultats-ia", "tableau-de-bord"]) {
+    client.invalidateQueries({ queryKey: [cle, projetId] });
+  }
+}
+
+export function useEvaluer(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ existante, mesure, statut, justification }: {
+      existante?: EvaluationMesure; mesure: string; statut: StatutConformite; justification: string;
+    }) =>
+      existante
+        ? api<EvaluationMesure>(`/api/statuts-mesures/${existante.id}/`, { methode: "PATCH", corps: { statut, justification } })
+        : api<EvaluationMesure>("/api/statuts-mesures/", { methode: "POST", corps: { projet: projetId, mesure, statut, justification } }),
+    onSuccess: () => invaliderMesures(client, projetId),
+  });
+}
+
+export function useDeposerPreuve(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fichier, mesures, titre, serie, surProgression }: {
+      fichier: File; mesures: string[]; titre: string; serie?: string; surProgression?: (p: number) => void;
+    }) =>
+      envoyerFichier<Preuve>("/api/preuves/", { projet: projetId, titre, mesures, ...(serie ? { serie } : {}) }, fichier, surProgression),
+    onSuccess: () => invaliderMesures(client, projetId),
+  });
+}
+
+export function useStatuerIA(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "valide" | "rejete" }) =>
+      api<ResultatIA>(`/api/resultats-ia/${id}/statuer/`, { methode: "POST", corps: { decision } }),
+    onSuccess: () => invaliderMesures(client, projetId),
   });
 }

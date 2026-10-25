@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 from apps.audit.models import JournalAudit
 from apps.comptes.models import Role
 from apps.documents.models import DocumentDepose
-from apps.projets.models import ActeurProjet, DocumentAttendu, Projet, ProjetReferentiel
+from apps.projets.models import ActeurProjet, DocumentAttendu, Projet, ProjetReferentiel, StatutMesure
 from apps.referentiels.models import Licence, Mesure, Referentiel
 
 from . import fabriques as f
@@ -462,6 +462,8 @@ class EcranDocumentsApiTests(BaseApi):
         self.chef = ActeurProjet.objects.get(projet=self.projet)
         self.attendu = DocumentAttendu.objects.create(projet=self.projet, intitule="PSSI", responsable=self.chef)
         self.attendu.mesures.add(self.mesure_rgs)
+        # Décisions sur les pièces : user_a est aussi RSSI du projet.
+        ActeurProjet.objects.create(projet=self.projet, utilisateur=self.user_a, role=role(Role.Portee.PROJET, "rssi"))
 
     def test_champs_lisibles(self):
         d = self.api_a.get(f"/api/documents-attendus/{self.attendu.id}/").data
@@ -484,3 +486,87 @@ class EcranDocumentsApiTests(BaseApi):
         self.assertEqual(self.attendu.statut, DocumentAttendu.Statut.DEPOSE)
         self.assertTrue(JournalAudit.objects.filter(objet_id=str(self.attendu.id), action="modification",
                                                     donnees__statut__apres="refuse").exists())
+
+
+
+class DecisionsEtPreuvesApiTests(BaseApi):
+    def setUp(self):
+        super().setUp()
+        from apps.ai.models import AnalyseIA, ResultatAnalyseMesure
+
+        self.projet = self.creer_projet(self.api_a)  # user_a : chef de projet seulement
+        self.attendu = DocumentAttendu.objects.create(projet=self.projet, intitule="PSSI")
+        self.deposer(self.api_a, self.projet, document_attendu=str(self.attendu.id))
+        self.rssi = f.utilisateur(self.org_a, "rssi@a.test")
+        ActeurProjet.objects.create(projet=self.projet, utilisateur=self.rssi, role=role(Role.Portee.PROJET, "rssi"))
+        self.api_rssi = APIClient()
+        self.api_rssi.force_login(self.rssi)
+        analyse = AnalyseIA.objects.create(projet=self.projet, type_analyse="analyse_documentaire", fournisseur="t",
+                                           modele="t", version_prompt="1", demandee_par=self.user_a)
+        self.resultat = ResultatAnalyseMesure.objects.create(projet=self.projet, analyse=analyse, mesure=self.mesure_rgs,
+                                                             couverture="partiel", justification="Section incomplète.")
+
+    def statut_piece(self, client, statut):
+        return client.patch(f"/api/documents-attendus/{self.attendu.id}/", {"statut": statut}, format="json")
+
+    def test_decision_sur_piece_reservee(self):
+        self.assertEqual(self.statut_piece(self.api_a, "valide").status_code, 403)  # chef de projet
+        self.assertEqual(self.statut_piece(self.api_rssi, "valide").status_code, 200)
+        admin = APIClient()
+        admin.force_login(self.admin_a)
+        self.assertEqual(self.statut_piece(admin, "depose").status_code, 200)
+        # Le chef de projet garde la main sur le reste (échéance, description).
+        r = self.api_a.patch(f"/api/documents-attendus/{self.attendu.id}/", {"echeance": "2027-01-15"}, format="json")
+        self.assertEqual(r.status_code, 200)
+
+    def test_drapeau_peut_decider(self):
+        self.assertFalse(self.api_a.get(f"/api/projets/{self.projet.id}/tableau-de-bord/").data["projet"]["peut_decider"])
+        self.assertTrue(self.api_rssi.get(f"/api/projets/{self.projet.id}/tableau-de-bord/").data["projet"]["peut_decider"])
+
+    def deposer_preuve(self, client, projet, mesures, **extra):
+        fichier = io.BytesIO(PDF)
+        fichier.name = "capture.pdf"
+        return client.post("/api/preuves/", {"projet": str(projet.id), "titre": "Capture", "fichier": fichier,
+                                             "mesures": [str(m.id) for m in mesures], **extra}, format="multipart")
+
+    def test_preuves_versionnees(self):
+        v1 = self.deposer_preuve(self.api_a, self.projet, [self.mesure_rgs])
+        self.assertEqual((v1.status_code, v1.data["version"]), (201, 1), v1.content)
+        v2 = self.deposer_preuve(self.api_a, self.projet, [self.mesure_rgs], serie=v1.data["serie"])
+        self.assertEqual((v2.data["version"], v2.data["serie"]), (2, v1.data["serie"]))
+        liste = self.api_a.get(f"/api/preuves/?mesure={self.mesure_rgs.id}").data["results"]
+        self.assertEqual([p["version"] for p in liste], [2, 1])
+        self.assertEqual(self.api_a.get(f"/api/preuves/{v2.data['id']}/telecharger/").status_code, 200)
+        self.assertEqual(self.api_a.delete(f"/api/preuves/{v2.data['id']}/").status_code, 405)
+
+    def test_preuve_mesure_hors_projet_refusee(self):
+        hors = Mesure.objects.get(referentiel=self.hygiene)
+        self.assertEqual(self.deposer_preuve(self.api_a, self.projet, [hors]).status_code, 400)
+
+    def test_preuves_etanches(self):
+        v1 = self.deposer_preuve(self.api_a, self.projet, [self.mesure_rgs]).data
+        self.assertEqual(self.api_b.get(f"/api/preuves/{v1['id']}/").status_code, 404)
+        self.assertEqual(self.api_b.get(f"/api/preuves/{v1['id']}/telecharger/").status_code, 404)
+        projet_b = self.creer_projet(self.api_b, "Projet B")
+        r = self.deposer_preuve(self.api_b, projet_b, [self.mesure_rgs], serie=v1["serie"])
+        self.assertEqual(r.status_code, 400)  # une série d'une autre organisation n'existe pas
+
+    def test_statuer_sur_conclusion_ia(self):
+        url = f"/api/resultats-ia/{self.resultat.id}/statuer/"
+        self.assertEqual(self.api_a.post(url, {"decision": "valide"}, format="json").status_code, 403)
+        r = self.api_rssi.post(url, {"decision": "valide", "commentaire": "OK"}, format="json")
+        self.assertEqual((r.status_code, r.data["statut_validation"]), (200, "valide"))
+        statut = StatutMesure.objects.get(projet=self.projet, mesure=self.mesure_rgs)
+        self.assertEqual((statut.statut, statut.resultat_analyse_id, statut.evalue_par), ("partiel", self.resultat.id, self.rssi))
+        self.assertTrue(JournalAudit.objects.filter(action="validation_ia", objet_id=str(self.resultat.id)).exists())
+        self.assertEqual(self.api_rssi.post(url, {"decision": "rejete"}, format="json").status_code, 409)
+        # Reprise manuelle : le lien avec la proposition de l'IA est rompu.
+        self.api_rssi.patch(f"/api/statuts-mesures/{statut.id}/", {"statut": "manquant", "justification": "Revu"}, format="json")
+        statut.refresh_from_db()
+        self.assertEqual((statut.statut, statut.resultat_analyse_id), ("manquant", None))
+
+    def test_rejet_sans_effet_sur_le_statut(self):
+        r = self.api_rssi.post(f"/api/resultats-ia/{self.resultat.id}/statuer/", {"decision": "rejete"}, format="json")
+        self.assertEqual(r.data["statut_validation"], "rejete")
+        self.assertFalse(StatutMesure.objects.filter(projet=self.projet, mesure=self.mesure_rgs).exists())
+        self.assertEqual(self.api_b.get(f"/api/resultats-ia/{self.resultat.id}/").status_code, 404)

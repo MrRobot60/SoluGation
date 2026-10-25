@@ -2,9 +2,10 @@ from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
+from apps.ai.api import ResultatViewSet
 from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
-from apps.documents.api import DocumentDeposeViewSet
+from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
 from apps.projets import api as projets
 from apps.referentiels.api import MesureViewSet, ReferentielViewSet
 
@@ -19,6 +20,8 @@ routeur.register("projet-referentiels", projets.ProjetReferentielViewSet, basena
 routeur.register("statuts-mesures", projets.StatutMesureViewSet, basename="statut-mesure")
 routeur.register("documents-attendus", projets.DocumentAttenduViewSet, basename="document-attendu")
 routeur.register("documents-deposes", DocumentDeposeViewSet, basename="document-depose")
+routeur.register("preuves", PreuveViewSet, basename="preuve")
+routeur.register("resultats-ia", ResultatViewSet, basename="resultat-ia")
 routeur.register("journal", JournalAuditViewSet, basename="journal")
 
 urlpatterns = [

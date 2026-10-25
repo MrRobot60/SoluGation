@@ -62,13 +62,14 @@ export async function api<T>(chemin: string, options: { methode?: string; corps?
 /** Envoi multipart avec progression (0 à 1). `fetch` ne remonte pas la progression d'un envoi. */
 export async function envoyerFichier<T>(
   chemin: string,
-  champs: Record<string, string>,
+  champs: Record<string, string | string[]>,
   fichier: File,
   surProgression?: (part: number) => void,
 ): Promise<T> {
   await assurerCsrf();
   const corps = new FormData();
-  Object.entries(champs).forEach(([cle, valeur]) => corps.append(cle, valeur));
+  Object.entries(champs).forEach(([cle, valeur]) =>
+    (Array.isArray(valeur) ? valeur : [valeur]).forEach((v) => corps.append(cle, v)));
   corps.append("fichier", fichier, fichier.name);
   return new Promise<T>((resoudre, rejeter) => {
     const xhr = new XMLHttpRequest();
@@ -90,4 +91,15 @@ export async function envoyerFichier<T>(
     };
     xhr.send(corps);
   });
+}
+
+/** Toutes les pages d'une liste paginée (par numéro de page : le lien `next` vise l'hôte interne). */
+export async function toutesLesPages<T>(chemin: string): Promise<T[]> {
+  const resultats: T[] = [];
+  const separateur = chemin.includes("?") ? "&" : "?";
+  for (let page = 1; ; page++) {
+    const d = await api<{ results: T[]; next: string | null }>(`${chemin}${separateur}taille=500&page=${page}`);
+    resultats.push(...d.results);
+    if (!d.next) return resultats;
+  }
 }

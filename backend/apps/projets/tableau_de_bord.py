@@ -6,7 +6,7 @@ from django.db.models import Count, Q
 
 from apps.ai.models import AnalyseIA, ResultatAnalyseMesure
 from apps.audit.models import JournalAudit
-from apps.core.api.acces import peut_ecrire_projet
+from apps.core.api.acces import peut_decider_projet, peut_ecrire_projet
 from apps.core.models import StatutValidation
 from apps.referentiels.models import Mesure
 from apps.suivi.models import Tache
@@ -101,6 +101,7 @@ def tableau_de_bord(projet, utilisateur, aujourd_hui=None):
             "niveau_vise": projet.niveau_vise, "niveau_vise_libelle": projet.get_niveau_vise_display(),
             "ebios_active": projet.ebios_active, "date_prochaine_revue": projet.date_prochaine_revue,
             "lecture_seule": not peut_ecrire_projet(utilisateur, projet),
+            "peut_decider": peut_decider_projet(utilisateur, projet),
         },
         "referentiels": referentiels,
         "evaluation": {"evaluees": total - non_evalues, "total": total},

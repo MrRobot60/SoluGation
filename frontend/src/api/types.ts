@@ -59,6 +59,7 @@ export interface TableauDeBord {
     ebios_active: boolean;
     date_prochaine_revue: string | null;
     lecture_seule: boolean;
+    peut_decider: boolean;
   };
   referentiels: ReferentielTdb[];
   evaluation: { evaluees: number; total: number };
@@ -170,4 +171,55 @@ export interface DocumentDepose {
   depose_par_nom: string;
   depose_le: string;
   commentaire: string;
+}
+
+export interface Mesure {
+  id: string;
+  referentiel: string;
+  identifiant: string;
+  intitule: string;
+  categorie: string;
+  niveaux: string[];
+  texte_officiel: string | null;
+  ordre: number;
+}
+
+export interface EvaluationMesure {
+  id: string;
+  projet: string;
+  mesure: string;
+  statut: StatutConformite;
+  justification: string;
+  resultat_analyse: string | null;
+  evalue_par: string | null;
+  evalue_par_nom: string;
+  evalue_le: string | null;
+}
+
+export interface Preuve {
+  id: string;
+  projet: string;
+  serie: string;
+  version: number;
+  titre: string;
+  description: string;
+  mesures: string[];
+  nom_original: string;
+  type_mime: string;
+  taille: number;
+  sha256: string;
+  depose_par_nom: string;
+  depose_le: string;
+}
+
+export interface ResultatIA {
+  id: string;
+  mesure: string;
+  mesure_identifiant: string;
+  document_nom: string;
+  couverture: Couverture;
+  justification: string;
+  statut_validation: "a_valider" | "valide" | "rejete";
+  valide_par_nom: string;
+  valide_le: string | null;
 }

@@ -1,15 +1,12 @@
-import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useState, type DragEvent, type ReactNode } from "react";
 import { useParams } from "react-router";
 
 import { useDeposer, useDepots, useDocumentsAttendus, useStatutDocument, useTableauDeBord } from "../api/hooks";
 import type { DocumentAttendu, DocumentDepose, StatutDocument } from "../api/types";
 import { Disposition } from "../composants/Disposition";
-import { Chevron, IconeCoche, IconeCroix, IconeDepot, IconeDocument } from "../composants/Icones";
+import { erreurClient, Progression, taille, ZoneDepot, type Envoi } from "../composants/Depot";
+import { Chevron, IconeCoche, IconeDocument } from "../composants/Icones";
 import { echeance, quand } from "../lib/format";
-
-/* Liste blanche côté client (confort) ; le serveur contrôle le contenu réel du fichier. */
-const EXTENSIONS = [".pdf", ".docx", ".xlsx", ".odt", ".ods", ".txt", ".csv", ".xml", ".nessus", ".png", ".jpg", ".jpeg"];
-const TAILLE_MAX = 50 * 1024 * 1024;
 
 const STATUTS: Record<StatutDocument, { libelle: string; texte: string; point: string }> = {
   attendu: { libelle: "À déposer", texte: "text-texte-2", point: "border-[1.5px] border-texte-3" },
@@ -26,19 +23,7 @@ const FILTRES: { cle: string; libelle: string; garde: (d: DocumentAttendu) => bo
   { cle: "valides", libelle: "Validés", garde: (d) => d.statut === "valide" || d.statut === "non_applicable" },
 ];
 
-function taille(octets: number) {
-  if (octets < 1024) return `${octets} o`;
-  if (octets < 1024 * 1024) return `${Math.round(octets / 1024)} Ko`;
-  return `${(octets / 1024 / 1024).toFixed(1).replace(".", ",")} Mo`;
-}
 
-function erreurClient(fichier: File): string | null {
-  const ext = fichier.name.includes(".") ? fichier.name.slice(fichier.name.lastIndexOf(".")).toLowerCase() : "";
-  if (!EXTENSIONS.includes(ext)) return `Format non accepté (${ext || "sans extension"}).`;
-  if (fichier.size > TAILLE_MAX) return "Fichier trop volumineux (50 Mo maximum).";
-  if (fichier.size === 0) return "Fichier vide.";
-  return null;
-}
 
 function enRetard(d: DocumentAttendu) {
   if (!d.echeance || !["attendu", "refuse"].includes(d.statut)) return false;
@@ -46,7 +31,6 @@ function enRetard(d: DocumentAttendu) {
 }
 
 /** État d'un dépôt en cours, par cible (id du document attendu, ou « libre »). */
-type Envoi = { progression: number; erreur?: string; nom: string };
 
 function useEnvois(projetId: string) {
   const deposer = useDeposer(projetId);
@@ -66,54 +50,6 @@ function useEnvois(projetId: string) {
   };
   const oublier = (cle: string) => setEnvois(({ [cle]: _, ...reste }) => reste);
   return { envois, envoyer, oublier };
-}
-
-/* ---- Zone de dépôt ----------------------------------------------------------------------- */
-
-function ZoneDepot({ surFichier, libelle, compacte = false, desactivee = false }: {
-  surFichier: (f: File) => void; libelle: string; compacte?: boolean; desactivee?: boolean;
-}) {
-  const champ = useRef<HTMLInputElement>(null);
-  const [survol, setSurvol] = useState(false);
-  const id = useId();
-  if (desactivee) return null;
-  return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setSurvol(true); }}
-      onDragLeave={() => setSurvol(false)}
-      onDrop={(e) => { e.preventDefault(); setSurvol(false); const f = e.dataTransfer.files[0]; if (f) surFichier(f); }}
-      className={`flex items-center gap-3 rounded-2xl border-[1.5px] border-dashed transition-colors duration-200 ease-ios ${compacte ? "px-3.5 py-3" : "flex-col px-6 py-8 text-center"} ${survol ? "border-accent-texte bg-accent-doux" : "border-texte-3"}`}
-    >
-      <IconeDepot taille={compacte ? 18 : 24} className="shrink-0 text-texte-2" />
-      <p className="text-sm text-texte-2">
-        {libelle}{" "}
-        <label htmlFor={id} className="cursor-pointer font-semibold text-accent-texte">choisir un fichier</label>
-      </p>
-      <input id={id} ref={champ} type="file" className="sr-only" accept={EXTENSIONS.join(",")}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) surFichier(f); e.target.value = ""; }} />
-    </div>
-  );
-}
-
-function Progression({ envoi, surFermer }: { envoi: Envoi; surFermer: () => void }) {
-  if (envoi.erreur) {
-    return (
-      <div role="alert" className="flex items-center gap-2 text-[13px] font-medium text-manquant-texte">
-        <span className="min-w-0 flex-1">« {envoi.nom} » : {envoi.erreur}</span>
-        <button type="button" onClick={surFermer} aria-label="Fermer le message" className="flex size-8 items-center justify-center rounded-full hover:bg-remplissage">
-          <IconeCroix taille={14} />
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-1.5" aria-live="polite">
-      <span className="text-[13px] text-texte-2">Envoi de « {envoi.nom} »… {Math.round(envoi.progression * 100)} %</span>
-      <div className="h-1 overflow-hidden rounded-full bg-piste">
-        <div className="h-1 rounded-full bg-accent transition-[width] duration-200" style={{ width: `${envoi.progression * 100}%` }} />
-      </div>
-    </div>
-  );
 }
 
 /* ---- Versions ---------------------------------------------------------------------------- */
@@ -144,9 +80,10 @@ function ListeVersions({ versions }: { versions: DocumentDepose[] }) {
 
 /* ---- Ligne de la checklist ---------------------------------------------------------------- */
 
-function LigneDocument({ d, versions, ouvert, basculer, envoi, envoyer, oublier, lectureSeule, projetId }: {
+function LigneDocument({ d, versions, ouvert, basculer, envoi, envoyer, oublier, lectureSeule, peutDecider, projetId }: {
   d: DocumentAttendu; versions: DocumentDepose[]; ouvert: boolean; basculer: () => void; envoi?: Envoi;
-  envoyer: (f: File, cible?: string) => void; oublier: (cle: string) => void; lectureSeule: boolean; projetId: string;
+  envoyer: (f: File, cible?: string) => void; oublier: (cle: string) => void; lectureSeule: boolean; peutDecider: boolean;
+  projetId: string;
 }) {
   const [survol, setSurvol] = useState(false);
   const statut = useStatutDocument(projetId);
@@ -219,7 +156,10 @@ function LigneDocument({ d, versions, ouvert, basculer, envoi, envoyer, oublier,
           </div>
           <ZoneDepot compacte desactivee={lectureSeule} surFichier={(f) => envoyer(f, d.id)}
             libelle={d.nb_versions ? `Nouvelle version (v${d.nb_versions + 1}) : glissez un fichier ici ou` : "Glissez un fichier ici ou"} />
-          {!lectureSeule && (
+          {!peutDecider && d.statut === "depose" && (
+            <p className="text-[13px] text-texte-2">En attente de décision du RSSI ou de l'autorité d'homologation.</p>
+          )}
+          {peutDecider && (
             <div className="flex flex-wrap gap-2">
               {d.statut === "depose" && (
                 <>
@@ -261,6 +201,7 @@ export function PageDocuments() {
   const [filtre, setFiltre] = useState("tous");
   const [ouvert, setOuvert] = useState<string | null>(null);
   const lectureSeule = tdb?.projet.lecture_seule ?? true;
+  const peutDecider = tdb?.projet.peut_decider ?? false;
 
   // Un fichier lâché hors d'une zone prévue ne doit pas être ouvert par le navigateur.
   useEffect(() => {
@@ -319,7 +260,7 @@ export function PageDocuments() {
               {visibles.map((d) => (
                 <LigneDocument key={d.id} d={d} versions={versionsDe(d.id)} ouvert={ouvert === d.id}
                   basculer={() => setOuvert(ouvert === d.id ? null : d.id)} envoi={envois[d.id]}
-                  envoyer={envoyer} oublier={oublier} lectureSeule={lectureSeule} projetId={projetId} />
+                  envoyer={envoyer} oublier={oublier} lectureSeule={lectureSeule} peutDecider={peutDecider} projetId={projetId} />
               ))}
             </ul>
           )}

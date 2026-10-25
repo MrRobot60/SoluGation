@@ -80,7 +80,7 @@ export function AValider({ d, base }: { d: TableauDeBord; base: string }) {
             </div>
           );
         })}
-        <Link to={`${base}/mesures`} className="flex min-h-[50px] items-center justify-center border-t border-separateur text-[15px] font-semibold text-accent-texte">
+        <Link to={`${base}/mesures?filtre=ia`} className="flex min-h-[50px] items-center justify-center border-t border-separateur text-[15px] font-semibold text-accent-texte">
           {v.total > v.conclusions.length ? `Examiner les ${v.total} conclusions` : "Examiner et valider"}
         </Link>
       </div>
