@@ -2,7 +2,7 @@ from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from apps.ai.api import ResultatViewSet
+from apps.ai.api import AnalyseViewSet, ResultatViewSet
 from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
@@ -23,6 +23,7 @@ routeur.register("documents-attendus", projets.DocumentAttenduViewSet, basename=
 routeur.register("documents-deposes", DocumentDeposeViewSet, basename="document-depose")
 routeur.register("preuves", PreuveViewSet, basename="preuve")
 routeur.register("resultats-ia", ResultatViewSet, basename="resultat-ia")
+routeur.register("analyses-ia", AnalyseViewSet, basename="analyse-ia")
 routeur.register("taches", TacheViewSet, basename="tache")
 routeur.register("commentaires", CommentaireViewSet, basename="commentaire")
 routeur.register("notifications", NotificationViewSet, basename="notification")

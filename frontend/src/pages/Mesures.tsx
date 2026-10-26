@@ -105,6 +105,20 @@ function PropositionIA({ r, projetId, peutDecider }: { r: ResultatIA; projetId: 
         <span className={`font-semibold ${c.texte}`}>{c.libelle}</span>
         {r.document_nom ? ` d'après « ${r.document_nom} »` : ""} : {r.justification}
       </p>
+      {r.extraits.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {r.extraits.map((e, i) => (
+            <li key={i} className="border-l-2 border-partiel/60 pl-2.5 text-[13px] leading-snug text-texte-2">
+              « {e.texte} »{e.page ? <span className="text-texte-3"> · p. {e.page}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs text-texte-3">
+        {r.confiance !== null ? `Confiance estimée ${Math.round(Number(r.confiance) * 100)} % · ` : ""}
+        {r.fournisseur === "factice" ? "mode test hors ligne (mots-clés), sans valeur d'analyse · " : ""}
+        proposée {quand(r.cree_le)}
+      </p>
       {peutDecider ? (
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={statuer.isPending} onClick={() => statuer.mutate({ id: r.id, decision: "valide" })}
@@ -272,7 +286,8 @@ export function PageMesures() {
 
   const index = useMemo(() => ({
     evaluation: new Map(evaluations.map((e) => [e.mesure, e])),
-    proposition: new Map(propositions.map((p) => [p.mesure, p])),
+    // Propositions triées de la plus récente à la plus ancienne : on garde la dernière par mesure.
+    proposition: propositions.reduce((m, p) => (m.has(p.mesure) ? m : m.set(p.mesure, p)), new Map<string, ResultatIA>()),
     preuves: (id: string) => preuves.filter((p) => p.mesures.includes(id)),
     documents: (id: string) => documents.filter((d) => d.mesures_couvertes.some((m) => m.id === id)),
   }), [evaluations, propositions, preuves, documents]);
@@ -291,7 +306,7 @@ export function PageMesures() {
   const ref = referentiels.find((r) => r.id === refId);
   const evaluees = mesures.filter((m) => statutDe(m) !== "non_evalue").length;
   const conformes = mesures.filter((m) => statutDe(m) === "conforme").length;
-  const choisirRef = (id: string) => { setParams({ referentiel: id }); setOuvert(null); };
+  const choisirRef = (id: string) => { setParams(filtre === "ia" ? { referentiel: id, filtre } : { referentiel: id }); setOuvert(null); };
 
   return (
     <Disposition>
@@ -307,12 +322,21 @@ export function PageMesures() {
         </div>
 
         <div role="tablist" aria-label="Référentiel" className="flex self-start overflow-x-auto rounded-full bg-remplissage p-[3px]">
-          {referentiels.map((r) => (
-            <button key={r.id} type="button" role="tab" aria-selected={r.id === refId} onClick={() => choisirRef(r.id)}
-              className={`rounded-full px-4 py-1.5 text-[13px] whitespace-nowrap transition-colors duration-200 ease-ios ${r.id === refId ? "bg-groupe font-semibold shadow-groupe" : "font-medium text-texte-2"}`}>
-              {nomCourt(r)}
-            </button>
-          ))}
+          {referentiels.map((r) => {
+            const aValider = new Set(propositions.filter((p) => p.referentiel_code === r.code).map((p) => p.mesure)).size;
+            return (
+              <button key={r.id} type="button" role="tab" aria-selected={r.id === refId} onClick={() => choisirRef(r.id)}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] whitespace-nowrap transition-colors duration-200 ease-ios ${r.id === refId ? "bg-groupe font-semibold shadow-groupe" : "font-medium text-texte-2"}`}>
+                {nomCourt(r)}
+                {aValider > 0 && (
+                  <span title={`${aValider} proposition${aValider > 1 ? "s" : ""} de l'IA à valider`}
+                    className="flex items-center gap-0.5 text-[12px] font-semibold text-partiel-texte">
+                    <IconeEtincelle taille={12} />{aValider}<span className="sr-only"> propositions de l'IA à valider</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex flex-col gap-3">

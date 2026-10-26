@@ -214,14 +214,40 @@ export interface Preuve {
 
 export interface ResultatIA {
   id: string;
+  analyse: string;
+  fournisseur: string;
   mesure: string;
   mesure_identifiant: string;
+  mesure_intitule: string;
+  referentiel_code: string;
+  document: string | null;
   document_nom: string;
   couverture: Couverture;
   justification: string;
+  extraits: { page: number | null; texte: string }[];
+  confiance: string | null;
+  cree_le: string;
   statut_validation: "a_valider" | "valide" | "rejete";
   valide_par_nom: string;
   valide_le: string | null;
+}
+
+export type EtatAnalyse = "en_attente" | "en_cours" | "terminee" | "echec";
+
+export interface AnalyseIA {
+  id: string;
+  projet: string;
+  etat: EtatAnalyse;
+  fournisseur: string;
+  modele: string;
+  erreur: string;
+  demandee_par_nom: string;
+  debut_le: string | null;
+  fin_le: string | null;
+  cree_le: string;
+  nb_resultats: number;
+  nb_a_valider: number;
+  documents_analyses: { id: string; nom: string; analyse: boolean; raison?: string; tronque?: boolean; mesures?: number; conclusions?: number }[];
 }
 
 export type StatutTache = "a_faire" | "en_cours" | "en_revue" | "terminee" | "abandonnee";

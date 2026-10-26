@@ -198,3 +198,14 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": "INFO"},
 }
+
+# IA : fournisseur derrière apps/ai/provider.py. « factice » = hors ligne (dev, démo, tests).
+# Mistral n'est appelé qu'une fois la conservation zéro (ZDR) activée et le refus d'entraînement posé
+# dans la console Mistral ; MISTRAL_ZDR_CONFIRME le déclare explicitement (sinon tout envoi est bloqué).
+IA_FOURNISSEUR = env("IA_FOURNISSEUR", default="factice")
+MISTRAL_API_KEY = env("MISTRAL_API_KEY", default="")
+MISTRAL_MODELE = env("MISTRAL_MODELE", default="mistral-medium-latest")
+MISTRAL_URL = env("MISTRAL_URL", default="https://api.mistral.ai/v1")
+MISTRAL_ZDR_CONFIRME = env.bool("MISTRAL_ZDR_CONFIRME", default=False)
+# Analyses exécutées dans un fil d'arrière-plan (à remplacer par une file de tâches en prod) ; synchrones en test.
+IA_SYNCHRONE = env.bool("IA_SYNCHRONE", default=False)

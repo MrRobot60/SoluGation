@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 
 import { useDeposer, useDepots, useDocumentsAttendus, useStatutDocument, useTableauDeBord } from "../api/hooks";
 import type { DocumentAttendu, DocumentDepose, StatutDocument } from "../api/types";
+import { CarteAnalyseIA } from "../composants/AnalyseIA";
 import { Disposition } from "../composants/Disposition";
 import { erreurClient, Progression, taille, ZoneDepot, type Envoi } from "../composants/Depot";
 import { Chevron, IconeCoche, IconeDocument } from "../composants/Icones";
@@ -235,6 +236,8 @@ export function PageDocuments() {
             </p>
           </div>
         </div>
+
+        <CarteAnalyseIA projetId={projetId} lectureSeule={lectureSeule} nbDocuments={depots.length} />
 
         <div role="radiogroup" aria-label="Filtrer les documents" className="flex self-start overflow-x-auto rounded-full bg-remplissage p-[3px]">
           {FILTRES.map((f) => {

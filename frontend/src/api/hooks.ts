@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -143,7 +143,25 @@ export function usePreuves(projetId: string) {
 export function useResultatsIA(projetId: string) {
   return useQuery({
     queryKey: ["resultats-ia", projetId],
-    queryFn: () => toutesLesPages<ResultatIA>(`/api/resultats-ia/?projet=${projetId}&statut_validation=a_valider`),
+    queryFn: () => toutesLesPages<ResultatIA>(`/api/resultats-ia/?projet=${projetId}&statut_validation=a_valider&actuels=1`),
+  });
+}
+
+export function useAnalyses(projetId: string) {
+  return useQuery({
+    queryKey: ["analyses-ia", projetId],
+    queryFn: () => api<Pagine<AnalyseIA>>(`/api/analyses-ia/?projet=${projetId}&taille=5`).then((p) => p.results),
+    enabled: Boolean(projetId),
+    // Tant qu'une analyse tourne en arrière-plan, on suit son état.
+    refetchInterval: (q) => (q.state.data?.some((a) => a.etat === "en_attente" || a.etat === "en_cours") ? 3000 : false),
+  });
+}
+
+export function useLancerAnalyse(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<AnalyseIA>("/api/analyses-ia/", { methode: "POST", corps: { projet: projetId } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["analyses-ia", projetId] }),
   });
 }
 
