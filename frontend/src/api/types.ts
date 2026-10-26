@@ -234,7 +234,7 @@ export interface ResultatIA {
 
 export type EtatAnalyse = "en_attente" | "en_cours" | "terminee" | "echec";
 
-export type TypeAnalyse = "analyse_documentaire" | "recommandation";
+export type TypeAnalyse = "analyse_documentaire" | "recommandation" | "suggestion_ebios";
 
 export interface RecommandationIA {
   id: string;
@@ -366,4 +366,31 @@ export interface Rapport {
     evolution: { conforme: number; manquant: number; partiel: number; non_evalue: number; taches_ouvertes: number; documents_valides: number } | null;
   };
   avertissement?: string;
+}
+
+/** Objet EBIOS RM générique (les champs dépendent de la ressource). */
+export type ObjetEbios = { id: string; projet: string; [champ: string]: unknown };
+
+export interface SyntheseEbios {
+  ateliers: { numero: number; libelle: string; statut: "non_commence" | "en_cours" | "termine"; date_atelier: string | null; id: string }[];
+  comptes: Record<string, number>;
+  alertes: { atelier: number; texte: string }[];
+  matrice: { initiale: Record<string, { id: string; intitule: string }[]>; residuelle: Record<string, { id: string; intitule: string }[]> };
+  cartographie: {
+    seuils: { danger: number; controle: number };
+    parties: { id: string; nom: string; categorie: string; niveau_menace: number; zone: "danger" | "controle" | "veille"; critique: boolean }[];
+  };
+}
+
+export interface SuggestionEbios {
+  id: string;
+  analyse: string;
+  fournisseur: string;
+  atelier: number;
+  type_objet: "evenement_redoute" | "bien_support" | "couple" | "scenario_strategique" | "scenario_operationnel";
+  type_libelle: string;
+  parent_id: string | null;
+  contenu: Record<string, unknown>;
+  statut_validation: "a_valider" | "valide" | "rejete";
+  cree_le: string;
 }

@@ -24,9 +24,12 @@ DELAI_MESURE = timedelta(days=90)
 def ateliers(projet):
     """Les cinq ateliers existent dès l'activation : créés à la première consultation."""
     existants = {a.numero: a for a in AtelierEBIOS.objects.filter(projet=projet)}
-    for numero in AtelierEBIOS.Numero.values:
-        if numero not in existants:
-            existants[numero] = AtelierEBIOS.objects.create(projet=projet, numero=numero)
+    manquants = [n for n in AtelierEBIOS.Numero.values if n not in existants]
+    if manquants:
+        # Deux requêtes simultanées (synthèse et liste des ateliers) : la contrainte d'unicité départage sans erreur.
+        AtelierEBIOS.objects.bulk_create([AtelierEBIOS(projet=projet, organisation_id=projet.organisation_id, numero=n) for n in manquants],
+                                         ignore_conflicts=True)
+        existants = {a.numero: a for a in AtelierEBIOS.objects.filter(projet=projet)}
     return [existants[n] for n in sorted(existants)]
 
 

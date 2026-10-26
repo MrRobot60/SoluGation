@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, Rapport, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, ObjetEbios, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -339,5 +339,94 @@ export function useValiderRapport(projetId: string) {
   return useMutation({
     mutationFn: (id: string) => api<Rapport>(`/api/rapports/${id}/valider/`, { methode: "POST" }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["rapports", projetId] }),
+  });
+}
+
+/* ---- EBIOS RM ---------------------------------------------------------------------------- */
+
+function invaliderEbios(client: ReturnType<typeof useQueryClient>, projetId: string) {
+  client.invalidateQueries({ queryKey: ["ebios", projetId] });
+  client.invalidateQueries({ queryKey: ["taches", projetId] });
+}
+
+export function useObjetsEbios(projetId: string, ressource: string) {
+  return useQuery({
+    queryKey: ["ebios", projetId, ressource],
+    queryFn: () => toutesLesPages<ObjetEbios>(`/api/ebios/${ressource}/?projet=${projetId}`),
+    enabled: Boolean(projetId),
+  });
+}
+
+/** Plusieurs ressources EBIOS en une fois : { ressource: objets }. */
+export function useToutEbios(projetId: string, ressources: readonly string[]) {
+  const resultats = useQueries({
+    queries: ressources.map((r) => ({
+      queryKey: ["ebios", projetId, r],
+      queryFn: () => toutesLesPages<ObjetEbios>(`/api/ebios/${r}/?projet=${projetId}`),
+      enabled: Boolean(projetId),
+    })),
+  });
+  return Object.fromEntries(ressources.map((r, i) => [r, resultats[i].data ?? []])) as Record<string, ObjetEbios[]>;
+}
+
+export function useSyntheseEbios(projetId: string) {
+  return useQuery({
+    queryKey: ["ebios", projetId, "synthese"],
+    queryFn: () => api<SyntheseEbios>(`/api/ebios/synthese/?projet=${projetId}`),
+    enabled: Boolean(projetId),
+    retry: pasDeRelanceSiRefus,
+  });
+}
+
+export function useEnregistrerEbios(projetId: string, ressource: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...champs }: { id?: string; [champ: string]: unknown }) =>
+      id
+        ? api<ObjetEbios>(`/api/ebios/${ressource}/${id}/`, { methode: "PATCH", corps: champs })
+        : api<ObjetEbios>(`/api/ebios/${ressource}/`, { methode: "POST", corps: { projet: projetId, ...champs } }),
+    onSuccess: () => invaliderEbios(client, projetId),
+  });
+}
+
+export function useSupprimerEbios(projetId: string, ressource: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/api/ebios/${ressource}/${id}/`, { methode: "DELETE" }),
+    onSuccess: () => invaliderEbios(client, projetId),
+  });
+}
+
+export function usePreremplirSocle(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<{ crees: number }>("/api/ebios/socle/", { methode: "POST", corps: { projet: projetId } }),
+    onSuccess: () => invaliderEbios(client, projetId),
+  });
+}
+
+export function useSuggestionsEbios(projetId: string) {
+  return useQuery({
+    queryKey: ["ebios", projetId, "suggestions"],
+    queryFn: () => toutesLesPages<SuggestionEbios>(`/api/ebios/suggestions/?projet=${projetId}&statut_validation=a_valider`),
+    enabled: Boolean(projetId),
+  });
+}
+
+export function useDemanderSuggestions(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (atelier: number) =>
+      api<{ analyse: string }>("/api/ebios/suggestions/demander/", { methode: "POST", corps: { projet: projetId, atelier } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["analyses-ia", projetId, "suggestion_ebios"] }),
+  });
+}
+
+export function useStatuerSuggestion(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decision, contenu }: { id: string; decision: "valide" | "rejete"; contenu?: Record<string, unknown> }) =>
+      api<SuggestionEbios>(`/api/ebios/suggestions/${id}/statuer/`, { methode: "POST", corps: { decision, contenu } }),
+    onSuccess: () => invaliderEbios(client, projetId),
   });
 }

@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 
 import { PageAccueil, PageAVenir, Protege } from "./pages/Autres";
+import { PageEbios } from "./pages/Ebios";
 import { PageRapports } from "./pages/Rapports";
 import { PageConnexion } from "./pages/Connexion";
 import { PageDocuments } from "./pages/Documents";
@@ -28,6 +29,7 @@ const routeur = createBrowserRouter([
       { path: "/projets/:projetId/mesures", element: <PageMesures /> },
       { path: "/projets/:projetId/plan-action", element: <PagePlanAction /> },
       { path: "/projets/:projetId/rapports", element: <PageRapports /> },
+      { path: "/projets/:projetId/ebios", element: <PageEbios /> },
       { path: "/projets/:projetId/:rubrique", element: <PageAVenir /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],
