@@ -98,11 +98,15 @@ function Fiche({ tache, projetId, lectureSeule, fermer }: { tache?: Tache; proje
   const commenter = useCommenter(projetId, tache?.id ?? "");
   const [b, setB] = useState<Brouillon>(versBrouillon(tache));
   const [texte, setTexte] = useState("");
-  const titre = useRef<HTMLInputElement>(null);
+  const titre = useRef<HTMLTextAreaElement>(null);
   const panneau = useRef<HTMLDivElement>(null);
   const [, setParams] = useSearchParams();
 
   useEffect(() => setB(versBrouillon(tache)), [tache]);
+  useEffect(() => {
+    const zone = titre.current;
+    if (zone) { zone.style.height = "auto"; zone.style.height = `${zone.scrollHeight}px`; }
+  }, [b.titre]);
   useEffect(() => {
     (tache ? panneau.current : titre.current)?.focus();
     const echap = (e: KeyboardEvent) => e.key === "Escape" && fermer();
@@ -132,9 +136,12 @@ function Fiche({ tache, projetId, lectureSeule, fermer }: { tache?: Tache; proje
         </div>
 
         <div className="flex flex-col gap-5 px-5 pb-6">
-          <input ref={titre} value={b.titre} onChange={(e) => setB({ ...b, titre: e.target.value })} disabled={lectureSeule}
+          {/* Zone multiligne ajustée à son contenu : un titre long passe à la ligne au lieu d'être coupé. */}
+          <textarea ref={titre} value={b.titre} rows={1} disabled={lectureSeule}
+            onChange={(e) => setB({ ...b, titre: e.target.value.replace(/\n/g, " ") })}
+            onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
             placeholder="Titre de la tâche" aria-label="Titre"
-            className="w-full bg-transparent text-[26px] leading-tight font-bold tracking-[-0.02em] outline-none placeholder:text-texte-3" />
+            className="w-full resize-none overflow-hidden bg-transparent text-[26px] leading-tight font-bold tracking-[-0.02em] outline-none [field-sizing:content] placeholder:text-texte-3" />
           {tache?.mesure_identifiant && (
             <Link to={`/projets/${projetId}/mesures`} className="-mt-3 self-start rounded-full bg-remplissage px-3 py-1.5 text-[13px] font-medium">
               {tache.mesure_identifiant} · {tache.mesure_intitule.slice(0, 70)}{tache.mesure_intitule.length > 70 ? "…" : ""}
