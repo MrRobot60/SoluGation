@@ -223,3 +223,66 @@ export interface ResultatIA {
   valide_par_nom: string;
   valide_le: string | null;
 }
+
+export type StatutTache = "a_faire" | "en_cours" | "en_revue" | "terminee" | "abandonnee";
+export type PrioriteTache = "basse" | "moyenne" | "haute" | "critique";
+
+export interface Tache {
+  id: string;
+  projet: string;
+  titre: string;
+  description: string;
+  mesure: string | null;
+  mesure_identifiant: string;
+  mesure_intitule: string;
+  referentiel_code: string;
+  responsable: string | null;
+  responsable_nom: string;
+  responsable_utilisateur: string | null;
+  echeance: string | null;
+  preuve_attendue: string;
+  statut: StatutTache;
+  priorite: PrioriteTache;
+  origine: "evaluation" | "analyse_ia" | "scan" | "ebios" | "manuelle";
+  cloturee_par_nom: string;
+  cloturee_le: string | null;
+  nb_commentaires: number;
+  en_retard: boolean;
+  cree_le: string;
+}
+
+export interface Acteur {
+  id: string;
+  utilisateur: string | null;
+  affichage: string;
+  role_libelle: string;
+  role_code: string;
+}
+
+export interface Commentaire {
+  id: string;
+  texte: string;
+  auteur: string;
+  auteur_nom: string;
+  cree_le: string;
+}
+
+export interface EntreeJournal {
+  id: number;
+  horodatage: string;
+  acteur_repr: string;
+  action: string;
+  objet_type: string;
+  donnees: Record<string, unknown>;
+}
+
+export interface NotificationApp {
+  id: string;
+  projet: string | null;
+  type_evenement: string;
+  titre: string;
+  message: string;
+  lien: string;
+  lue_le: string | null;
+  cree_le: string;
+}

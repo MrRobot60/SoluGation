@@ -31,6 +31,7 @@ class Tache(ProjetModel):
         CRITIQUE = "critique", "Critique"
 
     class Origine(models.TextChoices):
+        EVALUATION = "evaluation", "Évaluation de conformité"
         ANALYSE_IA = "analyse_ia", "Analyse IA"
         SCAN = "scan", "Rapport de scan"
         EBIOS = "ebios", "EBIOS RM"

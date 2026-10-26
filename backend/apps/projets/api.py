@@ -152,6 +152,20 @@ class ProjetViewSet(JournaliseMixin, mixins.CreateModelMixin, mixins.ListModelMi
         """Agrégats du tableau de bord, vus par l'utilisateur connecté (« Pour vous » = ses tâches et documents)."""
         return Response(calculer_tableau_de_bord(self.get_object(), request.user))
 
+    @action(detail=True, methods=["post"], url_path="generer-plan-action")
+    def generer_plan_action(self, request, pk=None):
+        """Rattrapage : une tâche pour chaque manquement évalué qui n'en a pas encore."""
+        from apps.suivi.api import signaler_nouvelle_tache
+        from apps.suivi.services import generer_plan_action
+
+        projet = self.get_object()
+        if not peut_ecrire_projet(request.user, projet):
+            raise PermissionDenied("Écriture non autorisée sur ce projet.")
+        crees = generer_plan_action(projet)
+        for t in crees:
+            signaler_nouvelle_tache(request, t)
+        return Response({"crees": len(crees)}, status=status.HTTP_201_CREATED if crees else status.HTTP_200_OK)
+
     @action(detail=True, methods=["post"], url_path="generer-checklist")
     def generer_checklist(self, request, pk=None):
         projet = self.get_object()
@@ -169,13 +183,28 @@ class ProjetViewSet(JournaliseMixin, mixins.CreateModelMixin, mixins.ListModelMi
 # --- Objets rattachés à un projet ---------------------------------------------------------
 
 
+def nom_acteur(acteur):
+    if acteur is None:
+        return ""
+    if acteur.utilisateur_id:
+        return str(acteur.utilisateur)
+    return acteur.nom or acteur.email
+
+
+
 class ActeurProjetSerializer(ProjetScopedSerializer):
     utilisateur = ChampFiltre(membres, required=False, allow_null=True)
     role = ChampFiltre(roles_projet)
+    affichage = serializers.SerializerMethodField()
+    role_libelle = serializers.CharField(source="role.libelle", read_only=True)
+    role_code = serializers.CharField(source="role.code", read_only=True)
 
     class Meta:
         model = ActeurProjet
-        fields = ["id", "projet", "utilisateur", "nom", "email", "organisme", "role"]
+        fields = ["id", "projet", "utilisateur", "nom", "email", "organisme", "role", "role_libelle", "role_code", "affichage"]
+
+    def get_affichage(self, obj) -> str:
+        return nom_acteur(obj)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -237,19 +266,20 @@ class StatutMesureViewSet(ProjetScopedViewSet):
     def perform_create(self, serializer):
         serializer.validated_data.update(evalue_par=self.request.user, evalue_le=timezone.now())
         super().perform_create(serializer)
+        self._manquement(serializer.instance)
 
     def perform_update(self, serializer):
         # Une évaluation reprise à la main n'est plus « d'après une proposition de l'IA ».
         serializer.validated_data.update(evalue_par=self.request.user, evalue_le=timezone.now(), resultat_analyse=None)
         super().perform_update(serializer)
+        self._manquement(serializer.instance)
 
+    def _manquement(self, evaluation):
+        from apps.suivi.api import signaler_nouvelle_tache
+        from apps.suivi.services import tache_pour_manquement
 
-def nom_acteur(acteur):
-    if acteur is None:
-        return ""
-    if acteur.utilisateur_id:
-        return str(acteur.utilisateur)
-    return acteur.nom or acteur.email
+        if tache := tache_pour_manquement(evaluation):
+            signaler_nouvelle_tache(self.request, tache)
 
 
 class DocumentAttenduSerializer(ProjetScopedSerializer):

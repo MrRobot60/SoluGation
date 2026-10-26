@@ -13,6 +13,8 @@ from apps.core.api.journal import journaliser
 from apps.core.api.permissions import MembreOrganisation
 from apps.core.models import StatutValidation
 from apps.projets.models import StatutMesure
+from apps.suivi.api import signaler_nouvelle_tache
+from apps.suivi.services import tache_pour_manquement
 
 from .models import ResultatAnalyseMesure
 
@@ -71,7 +73,7 @@ class ResultatViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
         if decision == StatutValidation.VALIDE:
             resultat.valider(request.user, commentaire)
-            StatutMesure.objects.update_or_create(
+            evaluation, _ = StatutMesure.objects.update_or_create(
                 projet=resultat.projet, mesure=resultat.mesure,
                 defaults={
                     "statut": COUVERTURE_VERS_STATUT[resultat.couverture],
@@ -79,6 +81,8 @@ class ResultatViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
                     "resultat_analyse": resultat, "evalue_par": request.user, "evalue_le": timezone.now(),
                 },
             )
+            if tache := tache_pour_manquement(evaluation):
+                signaler_nouvelle_tache(request, tache)
         else:
             resultat.rejeter(request.user, commentaire)
         journaliser(request, JournalAudit.Action.VALIDATION_IA, resultat, resultat.projet, {

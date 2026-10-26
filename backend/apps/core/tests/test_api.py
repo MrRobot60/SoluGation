@@ -12,6 +12,7 @@ from apps.audit.models import JournalAudit
 from apps.comptes.models import Role
 from apps.documents.models import DocumentDepose
 from apps.projets.models import ActeurProjet, DocumentAttendu, Projet, ProjetReferentiel, StatutMesure
+from apps.suivi.models import Notification
 from apps.referentiels.models import Licence, Mesure, Referentiel
 
 from . import fabriques as f
@@ -570,3 +571,111 @@ class DecisionsEtPreuvesApiTests(BaseApi):
         self.assertEqual(r.data["statut_validation"], "rejete")
         self.assertFalse(StatutMesure.objects.filter(projet=self.projet, mesure=self.mesure_rgs).exists())
         self.assertEqual(self.api_b.get(f"/api/resultats-ia/{self.resultat.id}/").status_code, 404)
+
+
+class PlanActionApiTests(BaseApi):
+    def setUp(self):
+        super().setUp()
+        from django.core import mail
+
+        self.mail = mail
+        self.projet = self.creer_projet(self.api_a)  # user_a : chef de projet
+        self.rssi = f.utilisateur(self.org_a, "rssi@a.test")
+        self.acteur_rssi = ActeurProjet.objects.create(projet=self.projet, utilisateur=self.rssi,
+                                                       role=role(Role.Portee.PROJET, "rssi"))
+        self.externe = ActeurProjet.objects.create(projet=self.projet, nom="Hébergeur", email="ops@hebergeur.test",
+                                                   role=role(Role.Portee.PROJET, "contributeur"))
+
+    def evaluer(self, statut, justification="Écart constaté"):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.api_a.post("/api/statuts-mesures/", {"projet": str(self.projet.id), "mesure": str(self.mesure_rgs.id),
+                                                             "statut": statut, "justification": justification}, format="json")
+
+    def test_un_manquement_une_tache_sans_doublon(self):
+        from apps.suivi.models import Tache
+
+        self.evaluer("manquant")
+        tache = Tache.objects.get(projet=self.projet)
+        self.assertEqual((tache.mesure, tache.priorite, tache.origine, tache.responsable), (self.mesure_rgs, "haute", "evaluation", self.acteur_rssi))
+        self.assertIn("Écart constaté", tache.description)
+        statut = StatutMesure.objects.get(projet=self.projet, mesure=self.mesure_rgs)
+        self.api_a.patch(f"/api/statuts-mesures/{statut.id}/", {"statut": "partiel"}, format="json")
+        self.assertEqual(Tache.objects.filter(projet=self.projet).count(), 1)  # tâche ouverte : pas de doublon
+        # Notification et mail au responsable (RSSI), pas à l'auteur.
+        self.assertTrue(Notification.objects.filter(destinataire=self.rssi, type_evenement="tache.creee").exists())
+        self.assertEqual([m.to for m in self.mail.outbox], [["rssi@a.test"]])
+
+    def test_conforme_ne_cree_pas_de_tache(self):
+        from apps.suivi.models import Tache
+
+        self.evaluer("conforme")
+        self.assertFalse(Tache.objects.filter(projet=self.projet).exists())
+
+    def test_rattrapage_des_manquements(self):
+        StatutMesure.objects.create(projet=self.projet, mesure=self.mesure_rgs, statut="partiel")
+        r = self.api_a.post(f"/api/projets/{self.projet.id}/generer-plan-action/")
+        self.assertEqual((r.status_code, r.data["crees"]), (201, 1))
+        self.assertEqual(self.api_a.post(f"/api/projets/{self.projet.id}/generer-plan-action/").data["crees"], 0)
+
+    def creer_tache(self, **extra):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.api_a.post("/api/taches/", {"projet": str(self.projet.id), "titre": "Durcir le serveur",
+                                                    "responsable": str(self.externe.id), **extra}, format="json")
+
+    def test_tache_manuelle_cloture_et_mails(self):
+        r = self.creer_tache(echeance="2026-12-01")
+        self.assertEqual((r.status_code, r.data["origine"]), (201, "manuelle"))
+        self.assertIn(["ops@hebergeur.test"], [m.to for m in self.mail.outbox])  # externe sans compte : mail
+        self.mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            r = self.api_rssi_patch(r.data["id"], {"statut": "terminee", "echeance": "2026-12-15"})
+        self.assertEqual(r.data["cloturee_par_nom"], str(self.rssi))
+        corps = self.mail.outbox[0].body
+        self.assertIn("Statut : À faire → Terminée", corps)
+        self.assertIn("Échéance : 01/12/2026 → 15/12/2026", corps)
+        self.assertNotIn("&#x27;", self.mail.outbox[0].body)  # texte brut non échappé
+        destinataires = sorted(m.to[0] for m in self.mail.outbox)
+        self.assertEqual(destinataires, ["chef@a.test", "ops@hebergeur.test"])  # pas l'auteur (RSSI)
+        self.assertEqual(self.api_a.delete(f"/api/taches/{r.data['id']}/").status_code, 405)
+
+    def api_rssi_patch(self, tache_id, donnees):
+        client = APIClient()
+        client.force_login(self.rssi)
+        return client.patch(f"/api/taches/{tache_id}/", donnees, format="json")
+
+    def test_commentaires_historique_et_notifications(self):
+        tache_id = self.creer_tache().data["id"]
+        with self.captureOnCommitCallbacks(execute=True):
+            r = self.api_a.post("/api/commentaires/", {"projet": str(self.projet.id), "tache": tache_id,
+                                                        "texte": "Le serveur web est fait, reste la base."}, format="json")
+        self.assertEqual((r.status_code, r.data["auteur_nom"]), (201, str(self.user_a)))
+        self.assertEqual(len(self.api_a.get(f"/api/commentaires/?tache={tache_id}").data["results"]), 1)
+        self.assertEqual(self.api_a.delete(f"/api/commentaires/{r.data['id']}/").status_code, 405)
+        historique = self.api_a.get(f"/api/journal/?objet_id={tache_id}").data["results"]
+        self.assertEqual(historique[-1]["action"], "creation")
+        # Destinataires : responsable (externe) et chefs de projet ; le chef étant l'auteur, seul l'externe reçoit.
+        self.assertIn(["ops@hebergeur.test"], [m.to for m in self.mail.outbox])
+        vide = self.api_a.post("/api/commentaires/", {"projet": str(self.projet.id), "tache": tache_id, "texte": "  "}, format="json")
+        self.assertEqual(vide.status_code, 400)
+
+    def test_notifications_personnelles_et_lecture(self):
+        self.evaluer("manquant")
+        client = APIClient()
+        client.force_login(self.rssi)
+        self.assertEqual(client.get("/api/notifications/compteur/").data["non_lues"], 1)
+        self.assertEqual(self.api_a.get("/api/notifications/compteur/").data["non_lues"], 0)  # pas celles des autres
+        client.post("/api/notifications/tout-lu/")
+        self.assertEqual(client.get("/api/notifications/compteur/").data["non_lues"], 0)
+
+    def test_notifications_coupees_par_projet(self):
+        Projet.objects.filter(pk=self.projet.pk).update(notifications_actives=False)
+        self.evaluer("manquant")
+        self.assertEqual(self.mail.outbox, [])
+        self.assertFalse(Notification.objects.exists())
+
+    def test_isolation_taches_et_commentaires(self):
+        tache_id = self.creer_tache().data["id"]
+        self.assertEqual(self.api_b.get(f"/api/taches/{tache_id}/").status_code, 404)
+        r = self.api_b.post("/api/commentaires/", {"projet": str(self.projet.id), "tache": tache_id, "texte": "x"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.api_b.get(f"/api/journal/?objet_id={tache_id}").data["results"], [])

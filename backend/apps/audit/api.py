@@ -26,6 +26,9 @@ class JournalAuditViewSet(viewsets.ReadOnlyModelViewSet):
         if est_admin_organisation(u):
             filtre |= Q(projet=None)
         qs = JournalAudit.objects.filter(filtre, organisation_id=u.organisation_id).order_by("-id")
-        if projet := self.request.query_params.get("projet"):
-            qs = qs.filter(projet_id=projet)
+        p = self.request.query_params
+        if p.get("projet"):
+            qs = qs.filter(projet_id=p["projet"])
+        if p.get("objet_id"):  # historique d'un élément (tâche, document…)
+            qs = qs.filter(objet_id=p["objet_id"])
         return qs

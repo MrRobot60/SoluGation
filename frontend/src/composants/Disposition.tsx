@@ -3,8 +3,9 @@ import { Link, NavLink, useNavigate, useParams } from "react-router";
 
 import { useDeconnexion, useMoi, useProjets } from "../api/hooks";
 import { useTheme, type ChoixTheme } from "../lib/theme";
+import { Cloche } from "./Cloche";
 import {
-  IconeAuto, IconeBouclier, IconeCalendrier, IconeChevronHautBas, IconeCloche, IconeCouches, IconeDocument, IconeLune,
+  IconeAuto, IconeBouclier, IconeCalendrier, IconeChevronHautBas, IconeCouches, IconeDocument, IconeLune,
   IconeMesures, IconePlus, IconeRapports, IconeReglages, IconeSoleil, IconeTableau, IconeTache,
 } from "./Icones";
 
@@ -135,7 +136,8 @@ function BarreLaterale({ projetId, referentiels }: { projetId: string; referenti
     >
       <div className="flex items-center gap-2.5 px-2">
         <Logo decoratif />
-        <span className="text-[17px] font-bold tracking-[-0.02em]">SoluGation</span>
+        <span className="flex-1 text-[17px] font-bold tracking-[-0.02em]">SoluGation</span>
+        <Cloche compacte />
       </div>
       <SelecteurProjet projetId={projetId} />
       <ul className="flex flex-col gap-0.5">
@@ -226,10 +228,7 @@ function BarreMobile({ projetId }: { projetId: string }) {
     <div className="mb-4 flex items-center gap-2.5 lg:hidden">
       <Logo />
       <div className="min-w-0 flex-1"><SelecteurProjet projetId={projetId} /></div>
-      <button type="button" aria-label="Notifications" className="verre relative flex size-11 shrink-0 items-center justify-center rounded-full">
-        <IconeCloche />
-        <span aria-hidden="true" className="absolute top-2.5 right-[11px] size-2 rounded-full bg-alerte" />
-      </button>
+      <Cloche />
     </div>
   );
 }

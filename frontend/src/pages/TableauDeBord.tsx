@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
 import { useTableauDeBord } from "../api/hooks";
@@ -6,7 +5,7 @@ import type { TableauDeBord as Donnees } from "../api/types";
 import { CarteMesures } from "../composants/CarteMesures";
 import { nomCourt } from "../composants/statuts";
 import { Disposition } from "../composants/Disposition";
-import { IconeCloche, IconeDepot, IconeRecherche } from "../composants/Icones";
+import { IconeDepot } from "../composants/Icones";
 import { Activite, AValider, PourVous } from "../composants/Listes";
 import { Synthese } from "../composants/Synthese";
 import { pourcentage } from "../lib/format";
@@ -43,14 +42,6 @@ function ReferentielsDuProjet({ d }: { d: Donnees }) {
   );
 }
 
-function BoutonVerre({ libelle, children, pastille }: { libelle: string; children: ReactNode; pastille?: boolean }) {
-  return (
-    <button type="button" aria-label={libelle} className="relative flex size-11 items-center justify-center rounded-full">
-      {children}
-      {pastille && <span aria-hidden="true" className="absolute top-2.5 right-[11px] size-2 rounded-full bg-alerte" />}
-    </button>
-  );
-}
 
 function Contenu({ d }: { d: Donnees }) {
   const base = `/projets/${d.projet.id}`;
@@ -67,10 +58,6 @@ function Contenu({ d }: { d: Donnees }) {
           </h1>
         </div>
         <div className="hidden items-center gap-2.5 lg:flex">
-          <div className="verre flex items-center rounded-full p-[3px]">
-            <BoutonVerre libelle="Rechercher"><IconeRecherche /></BoutonVerre>
-            <BoutonVerre libelle="Notifications" pastille><IconeCloche /></BoutonVerre>
-          </div>
           {!p.lecture_seule && (
             <Link to={`${base}/documents`} className="bouton-accent flex h-[50px] items-center gap-2 rounded-full px-[22px] text-[15px] font-semibold">
               <IconeDepot taille={17} />

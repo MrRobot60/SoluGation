@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -183,5 +183,87 @@ export function useStatuerIA(projetId: string) {
     mutationFn: ({ id, decision }: { id: string; decision: "valide" | "rejete" }) =>
       api<ResultatIA>(`/api/resultats-ia/${id}/statuer/`, { methode: "POST", corps: { decision } }),
     onSuccess: () => invaliderMesures(client, projetId),
+  });
+}
+
+export function useActeurs(projetId: string) {
+  return useQuery({ queryKey: ["acteurs", projetId], queryFn: () => toutesLesPages<Acteur>(`/api/acteurs/?projet=${projetId}`) });
+}
+
+export function useTaches(projetId: string) {
+  return useQuery({ queryKey: ["taches", projetId], queryFn: () => toutesLesPages<Tache>(`/api/taches/?projet=${projetId}`) });
+}
+
+function invaliderTaches(client: ReturnType<typeof useQueryClient>, projetId: string) {
+  for (const cle of ["taches", "tableau-de-bord", "historique", "commentaires"]) client.invalidateQueries({ queryKey: [cle] });
+  client.invalidateQueries({ queryKey: ["taches", projetId] });
+}
+
+export function useEnregistrerTache(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...champs }: Partial<Tache> & { id?: string }) =>
+      id
+        ? api<Tache>(`/api/taches/${id}/`, { methode: "PATCH", corps: champs })
+        : api<Tache>("/api/taches/", { methode: "POST", corps: { projet: projetId, ...champs } }),
+    onSuccess: () => invaliderTaches(client, projetId),
+  });
+}
+
+export function useGenererPlanAction(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<{ crees: number }>(`/api/projets/${projetId}/generer-plan-action/`, { methode: "POST" }),
+    onSuccess: () => invaliderTaches(client, projetId),
+  });
+}
+
+export function useCommentaires(tacheId: string | undefined) {
+  return useQuery({
+    queryKey: ["commentaires", tacheId],
+    queryFn: () => toutesLesPages<Commentaire>(`/api/commentaires/?tache=${tacheId}`),
+    enabled: Boolean(tacheId),
+  });
+}
+
+export function useCommenter(projetId: string, tacheId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (texte: string) => api<Commentaire>("/api/commentaires/", { methode: "POST", corps: { projet: projetId, tache: tacheId, texte } }),
+    onSuccess: () => invaliderTaches(client, projetId),
+  });
+}
+
+export function useHistorique(objetId: string | undefined) {
+  return useQuery({
+    queryKey: ["historique", objetId],
+    queryFn: () => toutesLesPages<EntreeJournal>(`/api/journal/?objet_id=${objetId}`),
+    enabled: Boolean(objetId),
+  });
+}
+
+export function useNotifications(active: boolean) {
+  return useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => api<Pagine<NotificationApp>>("/api/notifications/?taille=30"),
+    select: (d) => d.results,
+    enabled: active,
+  });
+}
+
+export function useCompteurNotifications() {
+  return useQuery({
+    queryKey: ["notifications", "compteur"],
+    queryFn: () => api<{ non_lues: number }>("/api/notifications/compteur/"),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useLireNotifications() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id?: string) =>
+      api<unknown>(id ? `/api/notifications/${id}/lue/` : "/api/notifications/tout-lu/", { methode: "POST" }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }

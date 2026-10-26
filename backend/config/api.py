@@ -8,6 +8,7 @@ from apps.comptes import api as comptes
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
 from apps.projets import api as projets
 from apps.referentiels.api import MesureViewSet, ReferentielViewSet
+from apps.suivi.api import CommentaireViewSet, NotificationViewSet, TacheViewSet
 
 routeur = DefaultRouter()
 routeur.register("utilisateurs", comptes.UtilisateurViewSet, basename="utilisateur")
@@ -22,6 +23,9 @@ routeur.register("documents-attendus", projets.DocumentAttenduViewSet, basename=
 routeur.register("documents-deposes", DocumentDeposeViewSet, basename="document-depose")
 routeur.register("preuves", PreuveViewSet, basename="preuve")
 routeur.register("resultats-ia", ResultatViewSet, basename="resultat-ia")
+routeur.register("taches", TacheViewSet, basename="tache")
+routeur.register("commentaires", CommentaireViewSet, basename="commentaire")
+routeur.register("notifications", NotificationViewSet, basename="notification")
 routeur.register("journal", JournalAuditViewSet, basename="journal")
 
 urlpatterns = [

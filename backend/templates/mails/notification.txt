@@ -1,0 +1,12 @@
+{% autoescape off %}{{ titre }}
+
+{{ message }}
+
+Projet : {{ projet }}
+Par : {{ auteur }}
+
+Voir dans SoluGation : {{ lien }}
+
+--
+Message automatique de SoluGation. Les notifications se règlent dans les paramètres du projet.
+{% endautoescape %}
