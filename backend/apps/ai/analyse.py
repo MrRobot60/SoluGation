@@ -250,12 +250,13 @@ def analyse_documentaire(analyse, fournisseur, bilan):
 
 
 def _traitement(type_analyse):
+    from apps.ebios.suggestions import suggerer
     from apps.rapports.redaction import rediger
 
     from .recommandations import recommander
 
     return {AnalyseIA.Type.ANALYSE_DOCUMENTAIRE: analyse_documentaire, AnalyseIA.Type.RECOMMANDATION: recommander,
-            AnalyseIA.Type.REDACTION_RAPPORT: rediger}[type_analyse]
+            AnalyseIA.Type.REDACTION_RAPPORT: rediger, AnalyseIA.Type.SUGGESTION_EBIOS: suggerer}[type_analyse]
 
 
 def executer(analyse_id):
@@ -287,11 +288,13 @@ def _cloturer(analyse):
 
     projet = analyse.projet
     documentaire = analyse.type_analyse == AnalyseIA.Type.ANALYSE_DOCUMENTAIRE
-    nb = (analyse.resultats if documentaire else analyse.recommandations).count()
+    nb = {AnalyseIA.Type.ANALYSE_DOCUMENTAIRE: analyse.resultats, AnalyseIA.Type.RECOMMANDATION: analyse.recommandations,
+          AnalyseIA.Type.SUGGESTION_EBIOS: analyse.suggestions_ebios}.get(analyse.type_analyse, analyse.resultats.none()).count()
     JournalAudit.enregistrer(organisation=projet.organisation, action=JournalAudit.Action.MODIFICATION, objet=analyse,
                              projet=projet, donnees={"etat": analyse.etat, "resultats": nb, "erreur": analyse.erreur})
-    # La rédaction d'un rapport se suit à l'écran : pas de notification.
-    if analyse.etat != AnalyseIA.Etat.TERMINEE or not nb or analyse.type_analyse == AnalyseIA.Type.REDACTION_RAPPORT:
+    # Rédaction de rapport et propositions EBIOS RM se suivent à l'écran : pas de notification.
+    if analyse.etat != AnalyseIA.Etat.TERMINEE or not nb or analyse.type_analyse in (
+            AnalyseIA.Type.REDACTION_RAPPORT, AnalyseIA.Type.SUGGESTION_EBIOS):
         return
     pluriel = "s" if nb > 1 else ""
     if documentaire:

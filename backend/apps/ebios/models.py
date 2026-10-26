@@ -2,7 +2,7 @@
 
 from django.db import models
 
-from apps.core.models import ProjetModel, echelle_1_4
+from apps.core.models import ProjetModel, ValidationHumaineModel, echelle_1_4
 
 
 class AtelierEBIOS(ProjetModel):
@@ -266,3 +266,31 @@ class MesureTraitement(ProjetModel):
 
     class Meta:
         verbose_name = "mesure de traitement (PACS)"
+
+
+# --- Propositions de l'IA (ateliers 1 à 4) ---------------------------------------------------
+
+
+class SuggestionEBIOS(ValidationHumaineModel, ProjetModel):
+    """Proposition de l'IA, à valider : acceptée (éventuellement corrigée), elle crée les objets de l'atelier."""
+
+    class TypeObjet(models.TextChoices):
+        EVENEMENT_REDOUTE = "evenement_redoute", "Événement redouté"
+        BIEN_SUPPORT = "bien_support", "Bien support"
+        COUPLE = "couple", "Couple source de risque / objectif visé"
+        SCENARIO_STRATEGIQUE = "scenario_strategique", "Scénario stratégique et chemins d'attaque"
+        SCENARIO_OPERATIONNEL = "scenario_operationnel", "Scénario opérationnel"
+
+    analyse = models.ForeignKey("ai.AnalyseIA", on_delete=models.CASCADE, related_name="suggestions_ebios")
+    atelier = models.PositiveSmallIntegerField(choices=AtelierEBIOS.Numero.choices)
+    type_objet = models.CharField(max_length=24, choices=TypeObjet.choices)
+    parent_id = models.UUIDField(null=True, blank=True, help_text="Valeur métier, couple SR/OV ou chemin d'attaque visé.")
+    contenu = models.JSONField(default=dict)
+    objets_crees = models.JSONField(default=list, blank=True, help_text="[{type, id}] créés à l'acceptation.")
+
+    champs_meme_projet = ("analyse",)
+
+    class Meta(ValidationHumaineModel.Meta):
+        verbose_name = "proposition EBIOS RM de l'IA"
+        verbose_name_plural = "propositions EBIOS RM de l'IA"
+        ordering = ["atelier", "cree_le"]

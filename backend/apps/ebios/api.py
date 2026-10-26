@@ -16,7 +16,15 @@ from apps.suivi.api import lien_tache
 from apps.suivi.notifications import acteurs_concernes, notifier
 
 from . import models as m
+from apps.ai.analyse import en_cours
+from apps.ai.api import DecisionSerializer
+from apps.ai.models import AnalyseIA
+from apps.ai.provider import IAIndisponible
+from apps.core.models import StatutValidation
+from apps.projets.models import Projet
+
 from .services import ateliers, preremplir_socle, synchroniser_risque_residuel, synthese, tache_pour_mesure, zone_menace
+from .suggestions import appliquer, creer_demande, verifier_demande
 
 
 class EbiosSerializer(ProjetScopedSerializer):
@@ -219,7 +227,102 @@ class EbiosProjetViewSet(viewsets.ViewSet):
         return Response({"crees": len(crees)}, status=status.HTTP_201_CREATED if crees else status.HTTP_200_OK)
 
 
+class SuggestionSerializer(serializers.ModelSerializer):
+    fournisseur = serializers.CharField(source="analyse.fournisseur", read_only=True)
+    type_libelle = serializers.CharField(source="get_type_objet_display", read_only=True)
+    valide_par_nom = serializers.CharField(source="valide_par.__str__", read_only=True, default="")
+
+    class Meta:
+        model = m.SuggestionEBIOS
+        fields = ["id", "projet", "analyse", "fournisseur", "atelier", "type_objet", "type_libelle", "parent_id", "contenu",
+                  "objets_crees", "statut_validation", "valide_par_nom", "valide_le", "cree_le"]
+        read_only_fields = fields
+
+
+class DemandeSerializer(serializers.Serializer):
+    projet = serializers.PrimaryKeyRelatedField(queryset=Projet.objects.none())
+    atelier = serializers.IntegerField(min_value=1, max_value=4)
+    cible = serializers.UUIDField(required=False, allow_null=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["projet"].queryset = projets_accessibles(self.context["request"].user)
+
+
+class DecisionSuggestionSerializer(DecisionSerializer):
+    contenu = serializers.JSONField(required=False, help_text="Proposition corrigée avant acceptation.")
+
+
+class SuggestionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Propositions de l'IA : `?projet=`, `?atelier=`, `?statut_validation=`. `demander` lance une génération,
+    `statuer` accepte (avec corrections éventuelles : les objets sont alors créés) ou rejette."""
+
+    serializer_class = SuggestionSerializer
+    permission_classes = [MembreOrganisation]
+
+    def get_queryset(self):
+        qs = m.SuggestionEBIOS.objects.filter(projet__in=projets_accessibles(self.request.user)).select_related("analyse", "valide_par")
+        for champ in ("projet", "atelier", "statut_validation"):
+            if valeur := self.request.query_params.get(champ):
+                qs = qs.filter(**{f"{champ}_id" if champ == "projet" else champ: valeur})
+        return qs.order_by("atelier", "cree_le")
+
+    @action(detail=False, methods=["post"], serializer_class=DemandeSerializer)
+    def demander(self, request):
+        demande = DemandeSerializer(data=request.data, context={"request": request})
+        demande.is_valid(raise_exception=True)
+        projet, atelier, cible = demande.validated_data["projet"], demande.validated_data["atelier"], demande.validated_data.get("cible")
+        if not peut_ecrire_projet(request.user, projet):
+            raise PermissionDenied("Lecture seule sur ce projet.")
+        if not projet.ebios_active:
+            raise PermissionDenied("EBIOS RM n'est pas activé pour ce projet.")
+        if not projet.organisation.ia_activee:
+            raise PermissionDenied("L'IA est désactivée pour votre organisation.")
+        if en_cours(projet, AnalyseIA.Type.SUGGESTION_EBIOS):
+            return Response({"detail": "Des propositions sont déjà en cours de préparation."}, status=status.HTTP_409_CONFLICT)
+        verifier_demande(projet, atelier, cible)
+        try:
+            with transaction.atomic():
+                analyse = creer_demande(request.user, projet, atelier, cible)
+                journaliser(request, JournalAudit.Action.CREATION, analyse, projet, {"type": analyse.type_analyse, "atelier": atelier,
+                                                                                       "fournisseur": analyse.fournisseur})
+        except IAIndisponible as e:
+            return Response({"detail": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({"analyse": str(analyse.pk), "etat": analyse.etat}, status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=["post"], serializer_class=DecisionSuggestionSerializer)
+    def statuer(self, request, pk=None):
+        suggestion = self.get_object()
+        if not peut_ecrire_projet(request.user, suggestion.projet):
+            raise PermissionDenied("Lecture seule sur ce projet.")
+        decision = DecisionSuggestionSerializer(data=request.data)
+        decision.is_valid(raise_exception=True)
+        with transaction.atomic():
+            suggestion = m.SuggestionEBIOS.objects.select_for_update().get(pk=suggestion.pk)
+            if suggestion.statut_validation != StatutValidation.A_VALIDER:
+                return Response({"detail": "Cette proposition a déjà fait l'objet d'une décision."}, status=status.HTTP_409_CONFLICT)
+            commentaire = decision.validated_data.get("commentaire", "")
+            if decision.validated_data["decision"] == StatutValidation.VALIDE:
+                contenu = decision.validated_data.get("contenu")
+                corrigee = isinstance(contenu, dict) and contenu != suggestion.contenu
+                suggestion.objets_crees = appliquer(suggestion, contenu if isinstance(contenu, dict) else suggestion.contenu)
+                if corrigee:
+                    suggestion.contenu = contenu
+                suggestion.save(update_fields=["objets_crees", "contenu", "modifie_le"])
+                suggestion.valider(request.user, commentaire)
+                for o in suggestion.objets_crees:
+                    JournalAudit.enregistrer(organisation=suggestion.projet.organisation, action=JournalAudit.Action.CREATION,
+                                             objet=suggestion, acteur=request.user, projet=suggestion.projet,
+                                             donnees={"objet": o, "source": "proposition IA acceptée", "corrigee": corrigee})
+            else:
+                suggestion.rejeter(request.user, commentaire)
+            journaliser(request, JournalAudit.Action.VALIDATION_IA, suggestion, suggestion.projet,
+                        {"decision": decision.validated_data["decision"], "atelier": suggestion.atelier, "type": suggestion.type_objet})
+        return Response(SuggestionSerializer(suggestion).data)
+
+
 ROUTES = [
+    ("ebios/suggestions", SuggestionViewSet, "ebios-suggestion"),
     ("ebios/ateliers", AtelierViewSet, "ebios-atelier"),
     ("ebios/valeurs-metier", vue_pour(m.ValeurMetier, serializer_pour(m.ValeurMetier)), "ebios-valeur-metier"),
     ("ebios/biens-supports", vue_pour(m.BienSupport, serializer_pour(m.BienSupport)), "ebios-bien-support"),

@@ -2,6 +2,11 @@
 activable par projet, cohérence entre ateliers, passage de l'atelier 5 au plan d'action et au registre des
 risques résiduels, socle pré-rempli depuis la conformité."""
 
+from unittest import mock
+
+from django.test import override_settings
+
+from apps.ai.provider import Factice, ReponseIA
 from apps.comptes.models import Role
 from apps.core.tests import fabriques as f
 from apps.core.tests.test_api import BaseApi, role
@@ -10,12 +15,15 @@ from apps.referentiels.models import Mesure
 from apps.risques.models import RisqueResiduel
 from apps.suivi.models import Tache
 
-from .models import EcartSocle, MesureTraitement
+from .models import (
+    BienSupport, CoupleSROV, EcartSocle, EvenementRedoute, MesureTraitement, ScenarioOperationnel, ScenarioStrategique,
+    SuggestionEBIOS,
+)
 
 API = "/api/ebios"
 
 
-class EbiosTests(BaseApi):
+class EbiosBase(BaseApi):
     def setUp(self):
         super().setUp()
         self.projet = self.creer_projet(self.api_a, "Projet A", ebios_active=True)
@@ -44,6 +52,8 @@ class EbiosTests(BaseApi):
         so = self.ok("scenarios-operationnels", projet, chemin=chemin, intitule="Hameçonnage puis rebond", vraisemblance=3)
         return {"vm": vm, "er": er, "couple": couple, "ss": ss, "chemin": chemin, "so": so}
 
+
+class EbiosTests(EbiosBase):
     def test_isolation_entre_organisations(self):
         vm = self.ok("valeurs-metier", nom="Paie", nature="processus")
         self.assertEqual(self.api_b.get(f"{API}/valeurs-metier/").data["count"], 0)
@@ -135,3 +145,116 @@ class EbiosTests(BaseApi):
         self.assertEqual(self.creer(client, "valeurs-metier", nom="x", nature="processus").status_code, 403)
         self.assertEqual(client.get(f"{API}/synthese/?projet={self.projet.id}").status_code, 200)
         self.assertEqual(client.post(f"{API}/socle/", {"projet": str(self.projet.id)}, format="json").status_code, 403)
+
+
+class Scripte:
+    nom, modele = "scripte", "v0"
+
+    def __init__(self, contenu):
+        self.contenu, self.messages = contenu, []
+
+    def verifier_configuration(self):
+        pass
+
+    def completer_json(self, systeme, utilisateur):
+        self.messages.append((systeme, utilisateur))
+        return ReponseIA(self.contenu, 10, 10)
+
+
+@override_settings(IA_SYNCHRONE=True)
+class SuggestionTests(EbiosBase):
+    """Propositions de l'IA : contexte sans nom, clés vérifiées, rien de créé sans décision humaine."""
+
+    def demander(self, client, fournisseur, atelier, projet=None, **extra):
+        with mock.patch("apps.ai.analyse.obtenir_fournisseur", return_value=fournisseur), \
+             self.captureOnCommitCallbacks(execute=True):
+            return client.post(f"{API}/suggestions/demander/", {"projet": str((projet or self.projet).id), "atelier": atelier, **extra},
+                               format="json")
+
+    def statuer(self, suggestion, decision="valide", client=None, **extra):
+        return (client or self.api_a).post(f"{API}/suggestions/{suggestion.id}/statuer/", {"decision": decision, **extra}, format="json")
+
+    def test_atelier_1_evenements_et_biens(self):
+        vm = self.ok("valeurs-metier", nom="Dossiers usagers", nature="information", entite_responsable="Mme Dupont")
+        fournisseur = Scripte({"propositions": [
+            {"cible": "VM1", "evenements_redoutes": [{"description": "Divulgation des dossiers", "impacts": "Atteinte à la vie privée", "gravite": 9}],
+             "biens_supports": [{"nom": "Base de données", "type_bien": "serveur"}]},
+            {"cible": "VM9", "evenements_redoutes": [{"description": "Inventé"}]},  # clé inconnue : écartée
+        ]})
+        self.assertEqual(self.demander(self.api_a, fournisseur, 1).status_code, 202)
+        systeme, message = fournisseur.messages[0]
+        self.assertIn("Atelier 1", systeme)
+        self.assertNotIn("Dupont", message)  # entité responsable jamais transmise
+        suggestions = {s.type_objet: s for s in SuggestionEBIOS.objects.filter(projet=self.projet)}
+        self.assertEqual(set(suggestions), {"evenement_redoute", "bien_support"})
+        self.assertEqual(suggestions["evenement_redoute"].contenu["gravite"], 4)  # cotation bornée
+        self.assertFalse(EvenementRedoute.objects.exists())  # rien de créé avant décision
+        self.assertEqual(self.demander(self.api_a, fournisseur, 1).status_code, 400)  # propositions en attente
+
+        corrige = {**suggestions["evenement_redoute"].contenu, "gravite": 3}
+        self.assertEqual(self.statuer(suggestions["evenement_redoute"], contenu=corrige).status_code, 200)
+        er = EvenementRedoute.objects.get(projet=self.projet)
+        self.assertEqual((str(er.valeur_metier_id), er.gravite), (vm, 3))
+        self.statuer(suggestions["bien_support"])
+        self.assertEqual(list(BienSupport.objects.get(projet=self.projet).valeurs_metier.values_list("nom", flat=True)), ["Dossiers usagers"])
+        self.assertEqual(self.statuer(suggestions["bien_support"]).status_code, 409)
+
+    def test_atelier_2_couples_jamais_retenus_d_office(self):
+        c = self.chaine()
+        fournisseur = Scripte({"propositions": [
+            {"source": {"libelle": "Cybercriminel"}, "objectif": {"libelle": "Revente de données"}},  # existe déjà
+            {"source": {"libelle": "Hacktiviste", "categorie": "hacktiviste"}, "objectif": {"libelle": "Défiguration"},
+             "motivation": 2, "ressources": 1, "activite": 2, "pertinence": 2, "justification": "Visibilité du portail."},
+        ]})
+        self.demander(self.api_a, fournisseur, 2)
+        suggestion = SuggestionEBIOS.objects.get(projet=self.projet, atelier=2)
+        self.statuer(suggestion)
+        couple = CoupleSROV.objects.exclude(pk=c["couple"]).get(projet=self.projet)
+        self.assertEqual((couple.source.libelle, couple.retenu), ("Hacktiviste", False))
+
+    def test_ateliers_3_et_4_scenarios(self):
+        self.assertEqual(self.demander(self.api_a, Scripte({}), 3).status_code, 400)  # aucun couple retenu
+        vm = self.ok("valeurs-metier", nom="Paie", nature="processus")
+        self.ok("evenements-redoutes", valeur_metier=vm, description="Paie bloquée", gravite=3)
+        self.ok("parties-prenantes", nom="Infogérant", dependance=3, penetration=3, maturite=2, confiance=2)
+        self.ok("biens-supports", nom="Serveur de paie")
+        sr = self.ok("sources-risque", libelle="Cybercriminel")
+        ov = self.ok("objectifs-vises", libelle="Rançon")
+        self.ok("couples", source=sr, objectif=ov, motivation=3, ressources=3, activite=3, pertinence=4, retenu=True)
+        self.demander(self.api_a, Scripte({"propositions": [{
+            "cible": "C1", "intitule": "Rançongiciel via l'infogérant", "evenements_redoutes": ["ER1", "ER9"], "gravite": 3,
+            "chemins": [{"description": "Compromission du poste d'administration de l'infogérant", "parties_prenantes": ["PP1", "PP7"]}],
+        }]}), 3)
+        self.statuer(SuggestionEBIOS.objects.get(projet=self.projet, atelier=3))
+        ss = ScenarioStrategique.objects.get(projet=self.projet)
+        self.assertEqual(ss.evenements_redoutes.count(), 1)  # ER9 inconnu : ignoré
+        chemin = ss.chemins.get()
+        self.assertEqual(list(chemin.parties_prenantes.values_list("nom", flat=True)), ["Infogérant"])
+
+        self.demander(self.api_a, Scripte({"propositions": [{"cible": "CH1", "intitule": "Hameçonnage de l'administrateur",
+                                                             "mode_operatoire": "1. Reconnaissance", "biens_supports": ["BS1"],
+                                                             "vraisemblance": 3}]}), 4)
+        self.statuer(SuggestionEBIOS.objects.get(projet=self.projet, atelier=4))
+        so = ScenarioOperationnel.objects.get(projet=self.projet)
+        self.assertEqual((so.chemin_id, so.vraisemblance, so.biens_supports.count()), (chemin.pk, 3, 1))
+
+    def test_isolation_et_ia_desactivee(self):
+        self.ok("valeurs-metier", nom="Paie", nature="processus")
+        fournisseur = Factice()
+        self.demander(self.api_a, fournisseur, 1)
+        suggestion = SuggestionEBIOS.objects.filter(projet=self.projet).first()
+        self.assertEqual(self.api_b.get(f"{API}/suggestions/{suggestion.id}/").status_code, 404)
+        self.assertEqual(self.statuer(suggestion, client=self.api_b).status_code, 404)
+        self.assertEqual(self.api_b.get(f"{API}/suggestions/").data["count"], 0)
+        self.assertEqual(self.demander(self.api_b, fournisseur, 2, self.projet).status_code, 400)
+        self.org_a.ia_activee = False
+        self.org_a.save()
+        self.assertEqual(self.demander(self.api_a, fournisseur, 2).status_code, 403)
+
+    def test_parent_supprime(self):
+        vm = self.ok("valeurs-metier", nom="Paie", nature="processus")
+        self.demander(self.api_a, Factice(), 1)
+        self.api_a.delete(f"{API}/valeurs-metier/{vm}/")
+        suggestion = SuggestionEBIOS.objects.filter(projet=self.projet, type_objet="evenement_redoute").first()
+        self.assertEqual(self.statuer(suggestion).status_code, 400)
+        self.assertEqual(SuggestionEBIOS.objects.get(pk=suggestion.pk).statut_validation, "a_valider")

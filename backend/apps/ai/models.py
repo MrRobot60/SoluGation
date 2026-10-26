@@ -13,6 +13,7 @@ class AnalyseIA(ValidationHumaineModel, ProjetModel):
         RECOMMANDATION = "recommandation", "Recommandations"
         REDACTION_RAPPORT = "redaction_rapport", "Rédaction de rapport"
         ANALYSE_SCAN = "analyse_scan", "Analyse de rapport de scan"
+        SUGGESTION_EBIOS = "suggestion_ebios", "Propositions EBIOS RM"
 
     class Etat(models.TextChoices):
         EN_ATTENTE = "en_attente", "En attente"

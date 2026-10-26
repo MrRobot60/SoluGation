@@ -108,7 +108,7 @@ class CompatibleOpenAI(Fournisseur):
 
 class Factice(Fournisseur):
     """Fournisseur hors ligne, pour le développement et les démonstrations sans clé : rapproche les mots de
-    l'intitulé de chaque mesure des phrases du document, et produit des recommandations et une rédaction de rapport génériques. Aucune donnée ne sort de la machine. Ses résultats
+    l'intitulé de chaque mesure des phrases du document, et produit des recommandations, une rédaction de rapport et des propositions EBIOS RM génériques. Aucune donnée ne sort de la machine. Ses résultats
     sont marqués `factice` et n'ont aucune valeur d'analyse."""
 
     nom = "factice"
@@ -148,7 +148,29 @@ class Factice(Fournisseur):
         return ReponseIA({"sections": [{"cle": cle, "texte": texte} for cle in
                                        ("synthese", "conformite", "documents", "plan_action", "suite")]}, len(utilisateur) // 4, 0)
 
+    def _ebios(self, utilisateur):
+        d = json.loads(utilisateur.split("\n", 1)[1])
+        cibles, atelier = d["cibles"], d["atelier"]
+        ers, bss, pps = list(d["evenements_redoutes"]), list(d["biens_supports"]), list(d["parties_prenantes"])
+        if atelier == 1:
+            p = [{"cible": c, "evenements_redoutes": [{"description": f"Indisponibilité de « {d['valeurs_metier'][c]['nom']} »",
+                                                       "impacts": "Interruption du service (test).", "gravite": 3}],
+                  "biens_supports": [{"nom": "Serveur applicatif", "type_bien": "serveur"}]} for c in cibles]
+        elif atelier == 2:
+            p = [{"source": {"libelle": "Cybercriminel opportuniste", "categorie": "crime organisé"},
+                  "objectif": {"libelle": "Gain financier par rançongiciel"}, "motivation": 3, "ressources": 2, "activite": 3,
+                  "pertinence": 3, "justification": "Proposition de test hors ligne."}]
+        elif atelier == 3:
+            p = [{"cible": c, "intitule": "Compromission par rebond (test)", "evenements_redoutes": ers[:1], "gravite": 3,
+                  "chemins": [{"description": "Par un prestataire de l'écosystème", "parties_prenantes": pps[:1]}]} for c in cibles]
+        else:
+            p = [{"cible": c, "intitule": "Hameçonnage puis élévation de privilèges (test)", "biens_supports": bss[:1],
+                  "mode_operatoire": "1. Reconnaissance\n2. Hameçonnage\n3. Rebond\n4. Exfiltration", "vraisemblance": 2} for c in cibles]
+        return ReponseIA({"propositions": p}, len(utilisateur) // 4, 0)
+
     def completer_json(self, systeme, utilisateur):
+        if utilisateur.startswith("Données EBIOS RM (JSON)"):
+            return self._ebios(utilisateur)
         if utilisateur.startswith("Données du projet (JSON)"):
             return self._rapport(utilisateur)
         if "<manquement " in utilisateur:
