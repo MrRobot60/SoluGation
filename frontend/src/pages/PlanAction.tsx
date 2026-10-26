@@ -3,11 +3,12 @@ import { Link, useParams, useSearchParams } from "react-router";
 
 import {
   useActeurs, useCommentaires, useCommenter, useEnregistrerTache, useGenererPlanAction, useHistorique, useMoi,
-  useTableauDeBord, useTaches,
+  useRecommandations, useTableauDeBord, useTaches,
 } from "../api/hooks";
 import type { Acteur, EntreeJournal, PrioriteTache, StatutTache, Tache } from "../api/types";
 import { Disposition } from "../composants/Disposition";
-import { Chevron, IconeCroix, IconePlus } from "../composants/Icones";
+import { Chevron, IconeCroix, IconeEtincelle, IconePlus } from "../composants/Icones";
+import { BandeauRecommandations, CarteRecommandation, recommandationDe } from "../composants/RecommandationIA";
 import { echeance, quand } from "../lib/format";
 
 const STATUTS: { cle: StatutTache; libelle: string; texte: string }[] = [
@@ -57,6 +58,10 @@ const CHAMPS: Record<string, string> = {
 
 function lignesHistorique(e: EntreeJournal, acteurs: Acteur[]): string[] {
   if (e.action === "creation") return [e.donnees.origine && e.donnees.origine !== "manuelle" ? "Tâche créée à partir d'un manquement" : "Tâche créée"];
+  if (e.donnees.source === "recommandation IA acceptée") {
+    const champs = (e.donnees.champs as string[]).map((c) => CHAMPS[c]?.toLowerCase() ?? c).join(", ");
+    return [`Recommandation de l'IA acceptée (mis à jour : ${champs})`];
+  }
   return Object.entries(e.donnees)
     .filter(([champ]) => CHAMPS[champ])
     .map(([champ, d]) => {
@@ -207,6 +212,8 @@ function Fiche({ tache, projetId, lectureSeule, fermer }: { tache?: Tache; proje
             <p className="text-[13px] text-texte-2">Clôturée par {tache.cloturee_par_nom} · {quand(tache.cloturee_le)}</p>
           )}
 
+          {tache && <CarteRecommandation tache={tache} projetId={projetId} lectureSeule={lectureSeule} />}
+
           {tache && (
             <section aria-labelledby="titre-commentaires" className="flex flex-col gap-3">
               <h2 id="titre-commentaires" className="text-[17px] font-bold">Commentaires</h2>
@@ -261,6 +268,7 @@ export function PagePlanAction() {
   const { data: tdb } = useTableauDeBord(projetId);
   const { data: moi } = useMoi();
   const { data: taches = [], isPending } = useTaches(projetId);
+  const { data: recos = [] } = useRecommandations(projetId);
   const generer = useGenererPlanAction(projetId);
   const [filtre, setFiltre] = useState("ouvertes");
   const lectureSeule = tdb?.projet.lecture_seule ?? true;
@@ -300,6 +308,9 @@ export function PagePlanAction() {
             </button>
           )}
         </div>
+
+        <BandeauRecommandations projetId={projetId} lectureSeule={lectureSeule}
+          nbSansRecommandation={taches.filter((t) => !CLOSES.includes(t.statut) && !recommandationDe(recos, t.id)).length} />
 
         <div role="radiogroup" aria-label="Filtrer les tâches" className="flex flex-wrap gap-1.5">
           {FILTRES.map((f) => (
@@ -341,6 +352,11 @@ export function PagePlanAction() {
                         {t.responsable_nom || "Sans responsable"} · priorité {p.libelle.toLowerCase()} ·{" "}
                         <span className={t.en_retard ? "font-semibold text-manquant-texte" : ""}>{echeance(t.echeance, t.en_retard)}</span>
                       </span>
+                      {recommandationDe(recos, t.id)?.statut_validation === "a_valider" && (
+                        <span className="flex items-center gap-1 text-xs font-semibold text-partiel-texte">
+                          <IconeEtincelle taille={12} /> Recommandation à relire
+                        </span>
+                      )}
                     </span>
                     <span className="flex flex-col items-end gap-0.5">
                       <span className={`text-[13px] font-semibold whitespace-nowrap ${s.texte}`}>{s.libelle}</span>

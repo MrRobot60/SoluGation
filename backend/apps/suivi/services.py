@@ -26,6 +26,11 @@ def responsable_par_defaut(projet):
     return None
 
 
+def preuve_generique(mesure):
+    """Preuve attendue posée par défaut sur une tâche générée : une recommandation acceptée peut la préciser."""
+    return f"Preuve de mise en œuvre de la mesure {mesure.identifiant} (procédure, configuration, capture)."
+
+
 def tache_pour_manquement(evaluation, aujourd_hui=None):
     """Crée la tâche d'un manquement si aucune tâche ouverte n'existe pour cette mesure. Renvoie la tâche créée ou None."""
     if evaluation.statut not in STATUTS_MANQUEMENT:
@@ -39,7 +44,7 @@ def tache_pour_manquement(evaluation, aujourd_hui=None):
         projet=projet, plan=plan_du_projet(projet), mesure=mesure, titre=mesure.intitule[:300],
         description=f"Mesure {mesure.identifiant} ({mesure.referentiel.nom}) {etat}."
                     + (f"\nConstat : {evaluation.justification}" if evaluation.justification else ""),
-        preuve_attendue=f"Preuve de mise en œuvre de la mesure {mesure.identifiant} (procédure, configuration, capture).",
+        preuve_attendue=preuve_generique(mesure),
         responsable=responsable_par_defaut(projet), priorite=priorite,
         echeance=(aujourd_hui or date.today()) + timedelta(days=DELAIS[priorite]),
         origine=Tache.Origine.ANALYSE_IA if evaluation.resultat_analyse_id else Tache.Origine.EVALUATION,

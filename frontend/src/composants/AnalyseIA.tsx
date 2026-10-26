@@ -10,8 +10,8 @@ import { quand } from "../lib/format";
  *  la carte renvoie vers l'écran Mesures, où le RSSI ou l'autorité d'homologation les acceptent ou les rejettent. */
 export function CarteAnalyseIA({ projetId, lectureSeule, nbDocuments }: { projetId: string; lectureSeule: boolean; nbDocuments: number }) {
   const { data: moi } = useMoi();
-  const { data: analyses = [] } = useAnalyses(projetId);
-  const lancer = useLancerAnalyse(projetId);
+  const { data: analyses = [] } = useAnalyses(projetId, "analyse_documentaire");
+  const lancer = useLancerAnalyse(projetId, "analyse_documentaire");
   const client = useQueryClient();
   const derniere = analyses[0];
   const enCours = derniere && (derniere.etat === "en_attente" || derniere.etat === "en_cours");
@@ -52,7 +52,7 @@ export function CarteAnalyseIA({ projetId, lectureSeule, nbDocuments }: { projet
           </p>
         </div>
         {!lectureSeule && (
-          <button type="button" disabled={enCours || lancer.isPending || nbDocuments === 0} onClick={() => lancer.mutate()}
+          <button type="button" disabled={enCours || lancer.isPending || nbDocuments === 0} onClick={() => lancer.mutate({})}
             className="bouton-accent h-10 shrink-0 rounded-full px-5 text-[14px] font-semibold disabled:opacity-45">
             {enCours ? "Analyse en cours…" : derniere ? "Relancer l'analyse" : "Analyser les documents"}
           </button>

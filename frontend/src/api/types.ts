@@ -234,9 +234,29 @@ export interface ResultatIA {
 
 export type EtatAnalyse = "en_attente" | "en_cours" | "terminee" | "echec";
 
+export type TypeAnalyse = "analyse_documentaire" | "recommandation";
+
+export interface RecommandationIA {
+  id: string;
+  analyse: string;
+  fournisseur: string;
+  tache: string | null;
+  mesure: string | null;
+  mesure_identifiant: string;
+  texte: string;
+  etapes: string[];
+  preuve_suggeree: string;
+  effort: "" | "faible" | "moyen" | "eleve";
+  statut_validation: "a_valider" | "valide" | "rejete";
+  valide_par_nom: string;
+  valide_le: string | null;
+  cree_le: string;
+}
+
 export interface AnalyseIA {
   id: string;
   projet: string;
+  type_analyse: TypeAnalyse;
   etat: EtatAnalyse;
   fournisseur: string;
   modele: string;

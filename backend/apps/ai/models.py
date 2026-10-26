@@ -76,7 +76,9 @@ class RecommandationIA(ValidationHumaineModel, ProjetModel):
     resultat = models.ForeignKey(ResultatAnalyseMesure, null=True, blank=True, on_delete=models.CASCADE, related_name="recommandations")
     tache = models.ForeignKey("suivi.Tache", null=True, blank=True, on_delete=models.SET_NULL, related_name="recommandations")
     mesure = models.ForeignKey("referentiels.Mesure", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
-    texte = models.TextField()
+    texte = models.TextField(help_text="Synthèse de la recommandation.")
+    etapes = models.JSONField(default=list, blank=True, help_text="Actions concrètes, dans l'ordre.")
+    preuve_suggeree = models.TextField(blank=True, help_text="Preuve qui permettrait de clore le manquement.")
     effort = models.CharField(max_length=10, blank=True, choices=[("faible", "Faible"), ("moyen", "Moyen"), ("eleve", "Élevé")])
 
     champs_meme_projet = ("analyse", "resultat", "tache")

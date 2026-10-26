@@ -133,22 +133,29 @@ def mesures_du_document(projet, document):
     return list(qs.select_related("referentiel").order_by("referentiel__code", "identifiant")), attendues
 
 
-def en_cours(projet):
-    return AnalyseIA.objects.filter(projet=projet, etat__in=[AnalyseIA.Etat.EN_ATTENTE, AnalyseIA.Etat.EN_COURS],
+def en_cours(projet, type_analyse=AnalyseIA.Type.ANALYSE_DOCUMENTAIRE):
+    return AnalyseIA.objects.filter(projet=projet, type_analyse=type_analyse,
+                                    etat__in=[AnalyseIA.Etat.EN_ATTENTE, AnalyseIA.Etat.EN_COURS],
                                     cree_le__gte=timezone.now() - DUREE_MAX_EN_COURS).exists()
 
 
-def creer_analyse(utilisateur, projet, documents):
-    """Vérifie la configuration avant de créer quoi que ce soit : une IA mal configurée échoue tout de suite."""
+def preparer(utilisateur, projet, type_analyse, version_prompt, parametres):
+    """Vérifie la configuration avant de créer quoi que ce soit : une IA mal configurée échoue tout de suite.
+    L'exécution part en arrière-plan une fois la transaction validée."""
     fournisseur = obtenir_fournisseur()
     fournisseur.verifier_configuration()
     analyse = AnalyseIA.objects.create(
-        projet=projet, type_analyse=AnalyseIA.Type.ANALYSE_DOCUMENTAIRE, fournisseur=fournisseur.nom,
-        modele=fournisseur.modele, version_prompt=VERSION_PROMPT, demandee_par=utilisateur,
-        parametres={"mesures_par_lot": MESURES_PAR_LOT, "morceau_max": MORCEAU_MAX},
+        projet=projet, type_analyse=type_analyse, fournisseur=fournisseur.nom, modele=fournisseur.modele,
+        version_prompt=version_prompt, demandee_par=utilisateur, parametres=parametres,
     )
-    analyse.documents.set(documents)
     transaction.on_commit(lambda: demarrer(analyse.pk))
+    return analyse
+
+
+def creer_analyse(utilisateur, projet, documents):
+    analyse = preparer(utilisateur, projet, AnalyseIA.Type.ANALYSE_DOCUMENTAIRE, VERSION_PROMPT,
+                       {"mesures_par_lot": MESURES_PAR_LOT, "morceau_max": MORCEAU_MAX})
+    analyse.documents.set(documents)
     return analyse
 
 
@@ -207,49 +214,59 @@ def _analyser_document(fournisseur, projet, document, bilan):
     return conclusions, (mesures if attendues else []), texte.tronque
 
 
+def analyse_documentaire(analyse, fournisseur, bilan):
+    projet = analyse.projet
+    bilan.update(sans_citation=0, documents=[])
+    meilleures, perimetre, mesures = {}, {}, {}
+    for document in analyse.documents.select_related("document_attendu").order_by("depose_le"):
+        try:
+            conclusions, attendues, tronque = _analyser_document(fournisseur, projet, document, bilan)
+        except NonAnalysable as e:
+            bilan["documents"].append({"id": str(document.pk), "nom": document.nom_original, "analyse": False, "raison": str(e)})
+            continue
+        bilan["documents"].append({"id": str(document.pk), "nom": document.nom_original, "analyse": True,
+                                   "tronque": tronque, "attendues": len(attendues), "conclusions": len(conclusions)})
+        for m in attendues:
+            perimetre.setdefault(m.pk, set()).add(document)
+        for mesure_id, c in conclusions.items():
+            mesures[mesure_id] = c.pop("mesure")
+            actuelle = meilleures.get(mesure_id)
+            if actuelle is None or (RANG[c["couverture"]], c["confiance"] or 0) > (RANG[actuelle["couverture"]], actuelle["confiance"] or 0):
+                meilleures[mesure_id] = c
+    if not any(d["analyse"] for d in bilan["documents"]):
+        raise IAIndisponible("Aucun document analysable (formats image ou documents scannés).")
+    mesures.update({m.pk: m for m in Mesure.objects.filter(pk__in=set(perimetre) - set(mesures))})
+
+    with transaction.atomic():
+        for mesure_id in set(meilleures) | set(perimetre):
+            mesure, c = mesures[mesure_id], meilleures.get(mesure_id)
+            if c is None:
+                docs = perimetre[mesure_id]
+                noms = ", ".join(sorted(d.nom_original for d in docs))
+                c = {"couverture": ResultatAnalyseMesure.Couverture.ABSENT, "extraits": [], "confiance": None,
+                     "document": next(iter(docs)) if len(docs) == 1 else None,
+                     "justification": f"Aucun passage des documents analysés ({noms[:500]}) ne traite cette exigence."}
+            ResultatAnalyseMesure.objects.create(projet=projet, analyse=analyse, mesure=mesure, **c)
+
+
+def _traitement(type_analyse):
+    from .recommandations import recommander
+
+    return {AnalyseIA.Type.ANALYSE_DOCUMENTAIRE: analyse_documentaire, AnalyseIA.Type.RECOMMANDATION: recommander}[type_analyse]
+
+
 def executer(analyse_id):
     analyse = AnalyseIA.objects.select_related("projet__organisation", "demandee_par").get(pk=analyse_id)
     if analyse.etat != AnalyseIA.Etat.EN_ATTENTE:
         return
     analyse.etat, analyse.debut_le = AnalyseIA.Etat.EN_COURS, timezone.now()
     analyse.save(update_fields=["etat", "debut_le"])
-    projet = analyse.projet
-    bilan = {"appels": 0, "jetons_entree": 0, "jetons_sortie": 0, "ecartes": 0, "sans_citation": 0, "documents": []}
+    bilan = {"appels": 0, "jetons_entree": 0, "jetons_sortie": 0, "ecartes": 0}
     try:
-        if not projet.organisation.ia_activee:
+        if not analyse.projet.organisation.ia_activee:
             raise IAIndisponible("L'IA a été désactivée pour cette organisation.")
-        fournisseur = obtenir_fournisseur()
-        meilleures, perimetre, mesures = {}, {}, {}
-        for document in analyse.documents.select_related("document_attendu").order_by("depose_le"):
-            try:
-                conclusions, attendues, tronque = _analyser_document(fournisseur, projet, document, bilan)
-            except NonAnalysable as e:
-                bilan["documents"].append({"id": str(document.pk), "nom": document.nom_original, "analyse": False, "raison": str(e)})
-                continue
-            bilan["documents"].append({"id": str(document.pk), "nom": document.nom_original, "analyse": True,
-                                       "tronque": tronque, "attendues": len(attendues), "conclusions": len(conclusions)})
-            for m in attendues:
-                perimetre.setdefault(m.pk, set()).add(document)
-            for mesure_id, c in conclusions.items():
-                mesures[mesure_id] = c.pop("mesure")
-                actuelle = meilleures.get(mesure_id)
-                if actuelle is None or (RANG[c["couverture"]], c["confiance"] or 0) > (RANG[actuelle["couverture"]], actuelle["confiance"] or 0):
-                    meilleures[mesure_id] = c
-        if not any(d["analyse"] for d in bilan["documents"]):
-            raise IAIndisponible("Aucun document analysable (formats image ou documents scannés).")
-        mesures.update({m.pk: m for m in Mesure.objects.filter(pk__in=set(perimetre) - set(mesures))})
-
-        with transaction.atomic():
-            for mesure_id in set(meilleures) | set(perimetre):
-                mesure, c = mesures[mesure_id], meilleures.get(mesure_id)
-                if c is None:
-                    docs = perimetre[mesure_id]
-                    noms = ", ".join(sorted(d.nom_original for d in docs))
-                    c = {"couverture": ResultatAnalyseMesure.Couverture.ABSENT, "extraits": [], "confiance": None,
-                         "document": next(iter(docs)) if len(docs) == 1 else None,
-                         "justification": f"Aucun passage des documents analysés ({noms[:500]}) ne traite cette exigence."}
-                ResultatAnalyseMesure.objects.create(projet=projet, analyse=analyse, mesure=mesure, **c)
-            analyse.etat = AnalyseIA.Etat.TERMINEE
+        _traitement(analyse.type_analyse)(analyse, obtenir_fournisseur(), bilan)
+        analyse.etat = AnalyseIA.Etat.TERMINEE
     except IAIndisponible as e:
         analyse.etat, analyse.erreur = AnalyseIA.Etat.ECHEC, str(e)
     except Exception:
@@ -266,12 +283,21 @@ def _cloturer(analyse):
     from apps.suivi.notifications import acteurs_concernes, notifier
 
     projet = analyse.projet
-    nb = analyse.resultats.count()
+    documentaire = analyse.type_analyse == AnalyseIA.Type.ANALYSE_DOCUMENTAIRE
+    nb = (analyse.resultats if documentaire else analyse.recommandations).count()
     JournalAudit.enregistrer(organisation=projet.organisation, action=JournalAudit.Action.MODIFICATION, objet=analyse,
                              projet=projet, donnees={"etat": analyse.etat, "resultats": nb, "erreur": analyse.erreur})
-    if analyse.etat == AnalyseIA.Etat.TERMINEE and nb:
+    if analyse.etat != AnalyseIA.Etat.TERMINEE or not nb:
+        return
+    pluriel = "s" if nb > 1 else ""
+    if documentaire:
         notifier(projet, auteur=analyse.demandee_par, type_evenement="analyse.terminee",
-                 titre=f"Analyse IA terminée : {nb} proposition{'s' if nb > 1 else ''} à valider",
+                 titre=f"Analyse IA terminée : {nb} proposition{pluriel} à valider",
                  message="Les conclusions de l'IA ne valent pas décision : chacune doit être acceptée ou rejetée.",
                  lien=f"/projets/{projet.pk}/mesures?filtre=ia",
                  destinataires=acteurs_concernes(projet, roles=("rssi", "autorite-homologation")))
+    else:
+        notifier(projet, auteur=analyse.demandee_par, type_evenement="recommandations.pretes",
+                 titre=f"{nb} recommandation{pluriel} de l'IA à relire",
+                 message="Chaque recommandation est à accepter ou rejeter depuis la fiche de la tâche.",
+                 lien=f"/projets/{projet.pk}/plan-action", destinataires=acteurs_concernes(projet))

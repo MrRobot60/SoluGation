@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -147,21 +147,42 @@ export function useResultatsIA(projetId: string) {
   });
 }
 
-export function useAnalyses(projetId: string) {
+export function useAnalyses(projetId: string, type: TypeAnalyse) {
   return useQuery({
-    queryKey: ["analyses-ia", projetId],
-    queryFn: () => api<Pagine<AnalyseIA>>(`/api/analyses-ia/?projet=${projetId}&taille=5`).then((p) => p.results),
+    queryKey: ["analyses-ia", projetId, type],
+    queryFn: () => api<Pagine<AnalyseIA>>(`/api/analyses-ia/?projet=${projetId}&type_analyse=${type}&taille=5`).then((p) => p.results),
     enabled: Boolean(projetId),
     // Tant qu'une analyse tourne en arrière-plan, on suit son état.
     refetchInterval: (q) => (q.state.data?.some((a) => a.etat === "en_attente" || a.etat === "en_cours") ? 3000 : false),
   });
 }
 
-export function useLancerAnalyse(projetId: string) {
+export function useLancerAnalyse(projetId: string, type: TypeAnalyse) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: () => api<AnalyseIA>("/api/analyses-ia/", { methode: "POST", corps: { projet: projetId } }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["analyses-ia", projetId] }),
+    mutationFn: (selection: { taches?: string[]; documents?: string[] } = {}) =>
+      api<AnalyseIA>("/api/analyses-ia/", { methode: "POST", corps: { projet: projetId, type_analyse: type, ...selection } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["analyses-ia", projetId, type] }),
+  });
+}
+
+export function useRecommandations(projetId: string) {
+  return useQuery({
+    queryKey: ["recommandations-ia", projetId],
+    queryFn: () => toutesLesPages<RecommandationIA>(`/api/recommandations-ia/?projet=${projetId}`),
+    enabled: Boolean(projetId),
+  });
+}
+
+export function useStatuerRecommandation(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "valide" | "rejete" }) =>
+      api<RecommandationIA>(`/api/recommandations-ia/${id}/statuer/`, { methode: "POST", corps: { decision } }),
+    onSuccess: (r) => {
+      for (const cle of ["recommandations-ia", "taches"]) client.invalidateQueries({ queryKey: [cle, projetId] });
+      if (r.tache) client.invalidateQueries({ queryKey: ["historique", r.tache] });
+    },
   });
 }
 

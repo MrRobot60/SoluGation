@@ -16,10 +16,13 @@ from apps.core.models import StatutValidation
 from apps.documents.models import DocumentDepose
 from apps.projets.models import Projet, StatutMesure
 from apps.suivi.api import signaler_nouvelle_tache
+from apps.suivi.models import Tache
+from apps.suivi.services import TACHES_CLOSES, preuve_generique
 from apps.suivi.services import tache_pour_manquement
 
 from .analyse import creer_analyse, documents_du_projet, en_cours
-from .models import AnalyseIA, ResultatAnalyseMesure
+from .models import AnalyseIA, RecommandationIA, ResultatAnalyseMesure
+from .recommandations import creer_recommandations, taches_a_traiter
 from .provider import IAIndisponible
 
 COUVERTURE_VERS_STATUT = {
@@ -124,24 +127,29 @@ class AnalyseSerializer(serializers.ModelSerializer):
 
 class LancementSerializer(serializers.Serializer):
     projet = serializers.PrimaryKeyRelatedField(queryset=Projet.objects.none())
+    type_analyse = serializers.ChoiceField(choices=[AnalyseIA.Type.ANALYSE_DOCUMENTAIRE, AnalyseIA.Type.RECOMMANDATION],
+                                           default=AnalyseIA.Type.ANALYSE_DOCUMENTAIRE)
     documents = serializers.PrimaryKeyRelatedField(queryset=DocumentDepose.objects.none(), many=True, required=False)
+    taches = serializers.PrimaryKeyRelatedField(queryset=Tache.objects.none(), many=True, required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        utilisateur = self.context["request"].user
-        self.fields["projet"].queryset = projets_accessibles(utilisateur)
-        self.fields["documents"].child_relation.queryset = DocumentDepose.objects.filter(projet__in=projets_accessibles(utilisateur))
+        accessibles = projets_accessibles(self.context["request"].user)
+        self.fields["projet"].queryset = accessibles
+        self.fields["documents"].child_relation.queryset = DocumentDepose.objects.filter(projet__in=accessibles)
+        self.fields["taches"].child_relation.queryset = Tache.objects.filter(projet__in=accessibles)
 
     def validate(self, attrs):
         projet = attrs["projet"]
-        if any(d.projet_id != projet.pk for d in attrs.get("documents", [])):
-            raise serializers.ValidationError({"documents": "Documents hors du projet."})
+        if any(o.projet_id != projet.pk for champ in ("documents", "taches") for o in attrs.get(champ, [])):
+            raise serializers.ValidationError("Éléments hors du projet.")
         return attrs
 
 
 class AnalyseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
-    """Analyses IA d'un projet (`?projet=`). POST {projet, documents?} lance l'analyse documentaire : sans
-    `documents`, la dernière version de chaque document du projet. Exécution en arrière-plan : suivre `etat`."""
+    """Analyses IA d'un projet (`?projet=`, `?type_analyse=`). POST {projet, type_analyse?, documents?, taches?} :
+    analyse documentaire (défaut : dernière version de chaque document) ou recommandations (défaut : tâches
+    ouvertes sans recommandation en attente ni acceptée). Exécution en arrière-plan : suivre `etat`."""
 
     serializer_class = AnalyseSerializer
     permission_classes = [MembreOrganisation]
@@ -149,11 +157,13 @@ class AnalyseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Cr
     def get_queryset(self):
         qs = (AnalyseIA.objects.filter(projet__in=projets_accessibles(self.request.user))
               .select_related("demandee_par")
-              .annotate(nb_resultats=Count("resultats"),
-                        nb_a_valider=Count("resultats", filter=Q(resultats__statut_validation=StatutValidation.A_VALIDER)))
+              .annotate(nb_resultats=Count("resultats", distinct=True) + Count("recommandations", distinct=True),
+                        nb_a_valider=Count("resultats", filter=Q(resultats__statut_validation=StatutValidation.A_VALIDER), distinct=True)
+                        + Count("recommandations", filter=Q(recommandations__statut_validation=StatutValidation.A_VALIDER), distinct=True))
               .order_by("-cree_le"))
-        if self.request.query_params.get("projet"):
-            qs = qs.filter(projet_id=self.request.query_params["projet"])
+        for champ in ("projet", "type_analyse"):
+            if self.request.query_params.get(champ):
+                qs = qs.filter(**{"projet_id" if champ == "projet" else champ: self.request.query_params[champ]})
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -164,18 +174,96 @@ class AnalyseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Cr
             raise PermissionDenied("Lecture seule sur ce projet.")
         if not projet.organisation.ia_activee:
             raise PermissionDenied("L'IA est désactivée pour votre organisation.")
-        if en_cours(projet):
-            return Response({"detail": "Une analyse est déjà en cours sur ce projet."}, status=status.HTTP_409_CONFLICT)
-        documents = demande.validated_data.get("documents") or documents_du_projet(projet)
-        if not documents:
-            return Response({"detail": "Aucun document déposé à analyser."}, status=status.HTTP_400_BAD_REQUEST)
+        type_analyse = demande.validated_data["type_analyse"]
+        if en_cours(projet, type_analyse):
+            return Response({"detail": "Une analyse du même type est déjà en cours sur ce projet."},
+                            status=status.HTTP_409_CONFLICT)
+        if type_analyse == AnalyseIA.Type.RECOMMANDATION:
+            choisies = demande.validated_data.get("taches")
+            elements = taches_a_traiter(projet, [t.pk for t in choisies] if choisies else None)
+            if not elements:
+                return Response({"detail": "Aucune tâche ouverte sans recommandation."}, status=status.HTTP_400_BAD_REQUEST)
+            trace = {"taches": [t.titre for t in elements]}
+        else:
+            elements = demande.validated_data.get("documents") or documents_du_projet(projet)
+            if not elements:
+                return Response({"detail": "Aucun document déposé à analyser."}, status=status.HTTP_400_BAD_REQUEST)
+            trace = {"documents": [{"nom": d.nom_original, "sha256": d.sha256} for d in elements]}
         try:
             with transaction.atomic():
-                analyse = creer_analyse(request.user, projet, documents)
+                creer = creer_recommandations if type_analyse == AnalyseIA.Type.RECOMMANDATION else creer_analyse
+                analyse = creer(request.user, projet, elements)
                 journaliser(request, JournalAudit.Action.CREATION, analyse, projet, {
-                    "type": analyse.type_analyse, "fournisseur": analyse.fournisseur, "modele": analyse.modele,
-                    "documents": [{"nom": d.nom_original, "sha256": d.sha256} for d in documents],
+                    "type": analyse.type_analyse, "fournisseur": analyse.fournisseur, "modele": analyse.modele, **trace,
                 })
         except IAIndisponible as e:
             return Response({"detail": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(AnalyseSerializer(self.get_queryset().get(pk=analyse.pk)).data, status=status.HTTP_202_ACCEPTED)
+
+
+class RecommandationSerializer(serializers.ModelSerializer):
+    mesure_identifiant = serializers.CharField(source="mesure.identifiant", read_only=True, default="")
+    fournisseur = serializers.CharField(source="analyse.fournisseur", read_only=True)
+    valide_par_nom = serializers.CharField(source="valide_par.__str__", read_only=True, default="")
+
+    class Meta:
+        model = RecommandationIA
+        fields = ["id", "projet", "analyse", "fournisseur", "tache", "mesure", "mesure_identifiant", "texte", "etapes",
+                  "preuve_suggeree", "effort", "statut_validation", "valide_par", "valide_par_nom", "valide_le",
+                  "commentaire_validation", "cree_le"]
+        read_only_fields = fields
+
+
+class RecommandationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """`?projet=`, `?tache=`, `?statut_validation=`. Décision par l'action `statuer` (membres pouvant écrire)."""
+
+    serializer_class = RecommandationSerializer
+    permission_classes = [MembreOrganisation]
+
+    def get_queryset(self):
+        qs = (RecommandationIA.objects.filter(projet__in=projets_accessibles(self.request.user))
+              .select_related("mesure", "analyse", "valide_par").order_by("-cree_le"))
+        p = self.request.query_params
+        for champ in ("projet", "tache", "statut_validation"):
+            if p.get(champ):
+                qs = qs.filter(**{f"{champ}_id" if champ != "statut_validation" else champ: p[champ]})
+        return qs
+
+    @action(detail=True, methods=["post"], serializer_class=DecisionSerializer)
+    @transaction.atomic
+    def statuer(self, request, pk=None):
+        reco = self.get_object()
+        if not peut_ecrire_projet(request.user, reco.projet):
+            raise PermissionDenied("Lecture seule sur ce projet.")
+        if reco.statut_validation != StatutValidation.A_VALIDER:
+            return Response({"detail": "Cette recommandation a déjà fait l'objet d'une décision."},
+                            status=status.HTTP_409_CONFLICT)
+        donnees = DecisionSerializer(data=request.data)
+        donnees.is_valid(raise_exception=True)
+        decision, commentaire = donnees.validated_data["decision"], donnees.validated_data.get("commentaire", "")
+        completes = []
+        if decision == StatutValidation.VALIDE:
+            reco.valider(request.user, commentaire)
+            tache = reco.tache
+            if tache and tache.statut not in TACHES_CLOSES:
+                # La recommandation complète la tâche sans jamais effacer ce qu'un humain a saisi : les étapes
+                # s'ajoutent à la description, la preuve ne remplace qu'une preuve vide ou restée générique.
+                etapes = "\n".join(f"{i}. {e}" for i, e in enumerate(reco.etapes, 1))
+                ajout = f"Recommandation acceptée par {request.user} : {reco.texte}\n{etapes}"
+                tache.description = f"{tache.description.rstrip()}\n\n{ajout}" if tache.description.strip() else ajout
+                completes.append("description")
+                generique = preuve_generique(tache.mesure) if tache.mesure else ""
+                if reco.preuve_suggeree and tache.preuve_attendue.strip() in ("", generique):
+                    tache.preuve_attendue = reco.preuve_suggeree
+                    completes.append("preuve_attendue")
+                if completes:
+                    tache.save(update_fields=[*completes, "modifie_le"])
+                    journaliser(request, JournalAudit.Action.MODIFICATION, tache, tache.projet, {
+                        "champs": completes, "source": "recommandation IA acceptée", "recommandation": str(reco.pk),
+                    })
+        else:
+            reco.rejeter(request.user, commentaire)
+        journaliser(request, JournalAudit.Action.VALIDATION_IA, reco, reco.projet, {
+            "decision": decision, "tache": str(reco.tache_id), "commentaire": commentaire, "champs_completes": completes,
+        })
+        return Response(RecommandationSerializer(reco).data)

@@ -108,7 +108,7 @@ class CompatibleOpenAI(Fournisseur):
 
 class Factice(Fournisseur):
     """Fournisseur hors ligne, pour le développement et les démonstrations sans clé : rapproche les mots de
-    l'intitulé de chaque mesure des phrases du document. Aucune donnée ne sort de la machine. Ses résultats
+    l'intitulé de chaque mesure des phrases du document, et produit des recommandations génériques. Aucune donnée ne sort de la machine. Ses résultats
     sont marqués `factice` et n'ont aucune valeur d'analyse."""
 
     nom = "factice"
@@ -123,7 +123,26 @@ class Factice(Fournisseur):
         texte = unicodedata.normalize("NFC", texte).lower()  # intitulés importés parfois en NFD (accents combinants)
         return {m[:6] for m in re.findall(r"[a-zàâçéèêëîïôûùüÿœ]{4,}", texte)}
 
+    MANQUEMENT = re.compile(r'<manquement cle="(?P<cle>[^"]+)">\n(?P<corps>.*?)\n</manquement>', re.S)
+
+    def _recommandations(self, utilisateur):
+        recos = []
+        for m in self.MANQUEMENT.finditer(utilisateur):
+            exigence = re.search(r"^Exigence : \[[^\]]+\] (.+)$", m["corps"], re.M)
+            objet = (exigence[1] if exigence else re.search(r"^Tâche : (.+)$", m["corps"], re.M)[1]).rstrip(". ")
+            recos.append({
+                "tache": m["cle"], "effort": "moyen",
+                "synthese": f"Mettre en œuvre l'exigence « {objet[:120]} » et en conserver la trace (fournisseur de test).",
+                "etapes": ["Désigner un porteur et préciser le périmètre concerné",
+                           f"Mettre en œuvre : {objet[:200]}",
+                           "Documenter la mise en œuvre et la faire relire par le RSSI"],
+                "preuve": "Procédure validée et capture ou export de configuration datés.",
+            })
+        return ReponseIA({"recommandations": recos}, len(utilisateur) // 4, 0)
+
     def completer_json(self, systeme, utilisateur):
+        if "<manquement " in utilisateur:
+            return self._recommandations(utilisateur)
         document = self.DOCUMENT.search(utilisateur)
         phrases = [p.strip() for p in re.split(r"(?<=[.;:!?])\s+|\n+", document["texte"] if document else "") if len(p.strip()) > 30]
         racines_phrases = [(p, self._racines(p)) for p in phrases]
