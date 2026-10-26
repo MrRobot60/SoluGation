@@ -57,7 +57,7 @@ def instantane(projet, aujourd_hui=None):
     ouvertes = [t for t in taches if t.statut not in TACHES_CLOSES]
     ouvertes.sort(key=lambda t: (ORDRE_PRIORITE.get(t.priorite, 9), t.echeance or date.max))
     liste_taches = [
-        {"titre": t.titre, "mesure": f"{t.mesure.referentiel.code} {t.mesure.identifiant}" if t.mesure else "",
+        {"titre": t.titre, "mesure": f"{t.mesure.referentiel.code} {t.mesure.identifiant}" if t.mesure else ("EBIOS RM" if t.origine == Tache.Origine.EBIOS else ""),
          "statut": t.get_statut_display(), "priorite": t.priorite, "priorite_libelle": t.get_priorite_display(),
          "echeance": t.echeance.isoformat() if t.echeance else None,
          "en_retard": bool(t.echeance and t.echeance < aujourd_hui),
@@ -65,6 +65,7 @@ def instantane(projet, aujourd_hui=None):
         for t in ouvertes
     ]
 
+    ebios = _ebios(projet) if projet.ebios_active else None
     risques = RisqueResiduel.objects.filter(projet=projet)
     derogations = Derogation.objects.filter(projet=projet)
     return {
@@ -97,6 +98,7 @@ def instantane(projet, aujourd_hui=None):
         },
         "risques": {"total": risques.count(), "acceptes": risques.filter(statut=RisqueResiduel.Statut.ACCEPTE).count()},
         "derogations": {"total": derogations.count(), "acceptees": derogations.filter(statut=Derogation.Statut.ACCEPTEE).count()},
+        "ebios": ebios,
         "ia": {
             # Propositions de la dernière analyse documentaire terminée (les précédentes sont remplacées).
             "conclusions_a_valider": ResultatAnalyseMesure.objects.filter(
@@ -106,6 +108,30 @@ def instantane(projet, aujourd_hui=None):
             ).count(),
             "recommandations_acceptees": RecommandationIA.objects.filter(projet=projet, statut_validation=StatutValidation.VALIDE).count(),
         },
+    }
+
+
+def _ebios(projet):
+    """Synthèse EBIOS RM figée dans le rapport : avancement, couples retenus, risques et mesures (PACS)."""
+    from apps.ebios.models import CoupleSROV, MesureTraitement, RisqueEBIOS
+    from apps.ebios.services import synthese
+
+    s = synthese(projet)
+    options = dict(RisqueEBIOS.Option.choices)
+    return {
+        "ateliers": [{"numero": a["numero"], "libelle": a["libelle"], "statut": a["statut"]} for a in s["ateliers"]],
+        "comptes": s["comptes"],
+        "alertes": len(s["alertes"]),
+        "couples_retenus": [f"{c.source.libelle} → {c.objectif.libelle}" for c in
+                            CoupleSROV.objects.filter(projet=projet, retenu=True).select_related("source", "objectif").order_by("-pertinence")],
+        "risques": [{"intitule": r.intitule, "gravite": r.gravite, "vraisemblance": r.vraisemblance, "niveau": r.gravite * r.vraisemblance,
+                     "option": options.get(r.option_traitement, "Non décidée"),
+                     "residuel": f"G{r.gravite_residuelle} × V{r.vraisemblance_residuelle}" if r.gravite_residuelle and r.vraisemblance_residuelle else ""}
+                    for r in RisqueEBIOS.objects.filter(projet=projet).order_by("-gravite", "-vraisemblance", "intitule")],
+        "mesures": [{"intitule": m.intitule, "tache": m.tache.get_statut_display() if m.tache else ""}
+                    for m in MesureTraitement.objects.filter(projet=projet).select_related("tache").order_by("cree_le")],
+        "matrice": {k: len(v) for k, v in s["matrice"]["initiale"].items()},
+        "matrice_residuelle": {k: len(v) for k, v in s["matrice"]["residuelle"].items()},
     }
 
 
@@ -151,5 +177,10 @@ def pour_ia(donnees):
         | {"prioritaires": [{"titre": t["titre"], "priorite": t["priorite"], "en_retard": t["en_retard"], "responsable": t["responsable_role"]}
                             for t in donnees["plan_action"]["liste"][:20]]},
         "risques": donnees["risques"], "derogations": donnees["derogations"], "ia": donnees["ia"],
+        # EBIOS RM : avancement et risques (intitulés et cotations), sans les saisies détaillées des ateliers.
+        **({"ebios_rm": {"ateliers": {str(a["numero"]): a["statut"] for a in donnees["ebios"]["ateliers"]},
+                         "couples_retenus": len(donnees["ebios"]["couples_retenus"]),
+                         "risques": [{k: r[k] for k in ("intitule", "gravite", "vraisemblance", "option")} for r in donnees["ebios"]["risques"][:15]],
+                         "mesures_traitement": len(donnees["ebios"]["mesures"])}} if donnees.get("ebios") else {}),
         "evolution": donnees.get("evolution"),
     }

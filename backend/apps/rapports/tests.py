@@ -147,6 +147,28 @@ class RapportTests(BaseApi):
             self.assertEqual(reponse.status_code, 404)
         self.assertEqual(self.generer(self.api_b, Factice()).status_code, 400)  # projet d'une autre organisation
 
+    def test_annexe_ebios(self):
+        from apps.ebios.models import CoupleSROV, ObjectifVise, RisqueEBIOS, ScenarioStrategique, SourceRisque
+
+        self.projet.ebios_active = True
+        self.projet.save()
+        couple = CoupleSROV.objects.create(projet=self.projet, source=SourceRisque.objects.create(projet=self.projet, libelle="Cybercriminel"),
+                                           objectif=ObjectifVise.objects.create(projet=self.projet, libelle="Rançon"),
+                                           motivation=3, ressources=3, activite=3, pertinence=4, retenu=True,
+                                           justification="Note interne confidentielle")
+        ss = ScenarioStrategique.objects.create(projet=self.projet, couple=couple, intitule="Rançongiciel", gravite=4)
+        RisqueEBIOS.objects.create(projet=self.projet, scenario_strategique=ss, intitule="Chiffrement des serveurs", gravite=4,
+                                   vraisemblance=2, option_traitement="reduire")
+        fournisseur = Scripte({"sections": [{"cle": "synthese", "texte": "Synthèse."}]})
+        rapport = Rapport.objects.get(pk=self.generer(self.api_a, fournisseur).data["id"])
+        ebios = rapport.donnees["ebios"]
+        self.assertEqual((ebios["couples_retenus"], ebios["matrice"]), (["Cybercriminel → Rançon"], {"4-2": 1}))
+        envoye = fournisseur.messages[0]
+        self.assertIn("Chiffrement des serveurs", envoye)
+        self.assertNotIn("Note interne confidentielle", envoye)  # saisies détaillées des ateliers non transmises
+        pdf = self.api_a.get(f"/api/rapports/{rapport.id}/pdf/")
+        self.assertEqual(pdf.status_code, 200)
+
     def test_auditeur_ne_genere_pas(self):
         from apps.comptes.models import Role
         from apps.core.tests import fabriques as f

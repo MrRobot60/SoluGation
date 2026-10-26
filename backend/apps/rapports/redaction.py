@@ -39,7 +39,8 @@ document, ni méthode (EBIOS RM n'est à citer que s'il figure dans les données
   synthese : 1 à 2 paragraphes, niveau de maturité global et 3 points clés ;
   conformite : lecture par référentiel (évaluation, conformité, manquements majeurs) ;
   documents : complétude du dossier, pièces manquantes ou en retard ;
-  plan_action : avancement, tâches prioritaires ou en retard, risques et dérogations ;
+  plan_action : avancement, tâches prioritaires ou en retard, risques et dérogations, et l'analyse EBIOS RM si \
+« ebios_rm » figure dans les données (ateliers, principaux risques et leur traitement) ;
   suite : 3 à 5 actions recommandées pour avancer vers la décision d'homologation.
 
 Réponds uniquement avec un objet JSON : {"sections": [{"cle": "synthese", "texte": "..."}, ...]}"""

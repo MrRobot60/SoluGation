@@ -70,6 +70,7 @@ def rendre(rapport, analyse=None):
         "taches": [{**t, "echeance_fr": _date(t["echeance"])} for t in d["plan_action"]["liste"]],
         "documents": [{**x, "echeance_fr": _date(x["echeance"])} for x in d["documents"]["liste"]],
         "aujourd_hui": date.today().strftime("%d/%m/%Y"),
+        "matrice_ebios": [(g, [(d["ebios"]["matrice"].get(f"{g}-{v}", 0)) for v in range(1, 5)]) for g in range(4, 0, -1)] if d.get("ebios") else [],
         "css": {"projet": chaine_css(d["projet"]["nom"]), "valide_par": chaine_css(rapport.valide_par or "")},
     }
     html = render_to_string("rapports/rapport.html", contexte)
