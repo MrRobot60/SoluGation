@@ -199,10 +199,16 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": "INFO"},
 }
 
-# IA : fournisseur derrière apps/ai/provider.py. « factice » = hors ligne (dev, démo, tests).
-# Mistral n'est appelé qu'une fois la conservation zéro (ZDR) activée et le refus d'entraînement posé
-# dans la console Mistral ; MISTRAL_ZDR_CONFIRME le déclare explicitement (sinon tout envoi est bloqué).
+# IA : fournisseur derrière apps/ai/provider.py (API compatible OpenAI).
+# factice = hors ligne (dev, démo, tests) ; scaleway (recommandé : conservation zéro par défaut, France) ;
+# mistral ; compatible = OVHcloud, IONOS, Ollama, vLLM… Tout envoi est bloqué tant que la conservation zéro
+# n'est pas confirmée (IA_ZDR_CONFIRME, ou MISTRAL_ZDR_CONFIRME pour Mistral) après lecture du DPA.
 IA_FOURNISSEUR = env("IA_FOURNISSEUR", default="factice")
+IA_NOM = env("IA_NOM", default="")
+IA_URL = env("IA_URL", default="")
+IA_MODELE = env("IA_MODELE", default="")
+IA_CLE = env("IA_CLE", default="")
+IA_ZDR_CONFIRME = env.bool("IA_ZDR_CONFIRME", default=False)
 MISTRAL_API_KEY = env("MISTRAL_API_KEY", default="")
 MISTRAL_MODELE = env("MISTRAL_MODELE", default="mistral-medium-latest")
 MISTRAL_URL = env("MISTRAL_URL", default="https://api.mistral.ai/v1")

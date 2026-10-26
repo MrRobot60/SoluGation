@@ -1,11 +1,15 @@
 """Couche d'abstraction des fournisseurs d'IA. Le reste du code n'appelle que `obtenir_fournisseur()` et
 `completer_json()` : changer de fournisseur (ou passer en local) ne touche ni l'analyse ni l'API.
 
+Tous les fournisseurs distants passent par l'API « compatible OpenAI » (`/chat/completions`), que parlent
+Mistral, Scaleway Generative APIs, OVHcloud AI Endpoints, IONOS AI Model Hub, Ollama et vLLM.
+
 Confidentialité (CLAUDE.md : aucun document client conservé par le fournisseur) :
-- Mistral garde par défaut entrées et sorties 30 jours (surveillance des abus), sauf « Zero Data Retention »
-  (ZDR), accordé sur demande et limité aux endpoints sans état. On n'utilise donc que `chat/completions`
-  (jamais Files, Agents, Batch, Conversations), et l'envoi est refusé tant que `MISTRAL_ZDR_CONFIRME` n'est pas
-  posé après activation du ZDR et refus de l'entraînement dans la console Mistral (Admin › Privacy).
+- Scaleway applique par défaut la conservation zéro, sans entraînement (hébergement en France) : fournisseur
+  recommandé. Mistral garde par défaut 30 jours, sauf ZDR accordé sur demande.
+- Quel que soit le fournisseur, l'envoi est refusé tant que la conservation zéro n'est pas confirmée
+  explicitement dans la configuration, après vérification des conditions contractuelles (DPA).
+- On n'utilise que `chat/completions`, sans état (jamais Files, Agents, Batch : stockés par le fournisseur).
 - Les messages d'erreur ne reprennent jamais le contenu envoyé ni la clé d'API.
 """
 
@@ -45,18 +49,21 @@ class Fournisseur:
         raise NotImplementedError
 
 
-class Mistral(Fournisseur):
-    nom = "mistral"
+class CompatibleOpenAI(Fournisseur):
     ESSAIS = 4
 
-    def __init__(self, cle, modele, url, zdr_confirme, delai=120):
-        self.cle, self.modele, self.url, self.zdr_confirme, self.delai = cle, modele, url.rstrip("/"), zdr_confirme, delai
+    def __init__(self, nom, url, modele, cle="", zdr_confirme=False, cle_requise=True, delai=120):
+        self.nom, self.url, self.modele, self.cle = nom, url.rstrip("/"), modele, cle
+        self.zdr_confirme, self.cle_requise, self.delai = zdr_confirme, cle_requise, delai
 
     def verifier_configuration(self):
         if not self.zdr_confirme:
-            raise IAIndisponible("Envoi à Mistral bloqué : la conservation zéro (ZDR) n'est pas confirmée dans la configuration.")
-        if not self.cle:
-            raise IAIndisponible("Clé d'API Mistral absente de la configuration.")
+            raise IAIndisponible(f"Envoi au fournisseur d'IA ({self.nom}) bloqué : la conservation zéro (ZDR) "
+                                 "n'est pas confirmée dans la configuration.")
+        if not self.url or not self.modele:
+            raise IAIndisponible("URL ou modèle du fournisseur d'IA absent de la configuration.")
+        if self.cle_requise and not self.cle:
+            raise IAIndisponible(f"Clé d'API {self.nom} absente de la configuration.")
 
     def completer_json(self, systeme, utilisateur):
         self.verifier_configuration()  # garde-fou répété au plus près de l'envoi
@@ -66,10 +73,11 @@ class Mistral(Fournisseur):
             "response_format": {"type": "json_object"},
             "messages": [{"role": "system", "content": systeme}, {"role": "user", "content": utilisateur}],
         }).encode()
+        entetes = {"Content-Type": "application/json", "Accept": "application/json"}
+        if self.cle:
+            entetes["Authorization"] = f"Bearer {self.cle}"
         for essai in range(self.ESSAIS):
-            requete = urllib.request.Request(f"{self.url}/chat/completions", data=corps, method="POST", headers={
-                "Authorization": f"Bearer {self.cle}", "Content-Type": "application/json", "Accept": "application/json",
-            })
+            requete = urllib.request.Request(f"{self.url}/chat/completions", data=corps, method="POST", headers=entetes)
             try:
                 with urllib.request.urlopen(requete, timeout=self.delai) as r:  # noqa: S310 (URL fixée par la config)
                     reponse = json.load(r)
@@ -77,7 +85,7 @@ class Mistral(Fournisseur):
             except urllib.error.HTTPError as e:
                 if e.code in (429, 500, 502, 503, 504) and essai < self.ESSAIS - 1:
                     attente = min(float(e.headers.get("Retry-After") or 2 ** (essai + 1)), 30)
-                    journal.warning("Mistral HTTP %s, nouvel essai dans %ss", e.code, attente)
+                    journal.warning("%s HTTP %s, nouvel essai dans %ss", self.nom, e.code, attente)
                     time.sleep(attente)
                     continue
                 raise IAIndisponible(f"Le fournisseur d'IA a refusé la requête (HTTP {e.code}).") from None
@@ -87,8 +95,11 @@ class Mistral(Fournisseur):
                     continue
                 raise IAIndisponible("Fournisseur d'IA injoignable.") from None
         try:
-            contenu = json.loads(reponse["choices"][0]["message"]["content"])
-        except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+            texte = reponse["choices"][0]["message"]["content"].strip()
+            # Certains petits modèles entourent le JSON d'un bloc de code malgré le mode JSON.
+            texte = re.sub(r"^```(?:json)?\s*|\s*```$", "", texte)
+            contenu = json.loads(texte)
+        except (KeyError, IndexError, TypeError, AttributeError, json.JSONDecodeError):
             raise IAIndisponible("Réponse du fournisseur d'IA illisible.") from None
         usage = reponse.get("usage") or {}
         return ReponseIA(contenu if isinstance(contenu, dict) else {}, usage.get("prompt_tokens", 0),
@@ -133,8 +144,17 @@ class Factice(Fournisseur):
 
 
 def obtenir_fournisseur() -> Fournisseur:
-    if settings.IA_FOURNISSEUR == "mistral":
-        return Mistral(settings.MISTRAL_API_KEY, settings.MISTRAL_MODELE, settings.MISTRAL_URL, settings.MISTRAL_ZDR_CONFIRME)
-    if settings.IA_FOURNISSEUR == "factice":
+    choix = settings.IA_FOURNISSEUR
+    if choix == "factice":
         return Factice()
+    if choix == "mistral":
+        return CompatibleOpenAI("mistral", settings.MISTRAL_URL, settings.MISTRAL_MODELE, settings.MISTRAL_API_KEY,
+                                settings.MISTRAL_ZDR_CONFIRME)
+    if choix == "scaleway":
+        return CompatibleOpenAI("scaleway", settings.IA_URL or "https://api.scaleway.ai/v1",
+                                settings.IA_MODELE or "mistral-small-3.2-24b-instruct-2506", settings.IA_CLE,
+                                settings.IA_ZDR_CONFIRME)
+    if choix == "compatible":  # OVHcloud, IONOS, Ollama ou vLLM auto-hébergé… (clé facultative en local)
+        return CompatibleOpenAI(settings.IA_NOM or "compatible", settings.IA_URL, settings.IA_MODELE, settings.IA_CLE,
+                                settings.IA_ZDR_CONFIRME, cle_requise=False)
     raise IAIndisponible("Fournisseur d'IA inconnu dans la configuration.")

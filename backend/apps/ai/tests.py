@@ -1,11 +1,12 @@
-"""Analyse IA : isolation entre organisations, option IA désactivée, configuration Mistral bloquante sans ZDR,
+"""Analyse IA : isolation entre organisations, option IA désactivée, envoi bloqué sans conservation zéro confirmée (Mistral, Scaleway…),
 filtrage de la sortie du modèle (mesures hors lot, citations inventées) et règle d'or (tout naît `a_valider`)."""
 
 import io
+import json
 import zipfile
 from unittest import mock
 
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 
 from apps.core.models import StatutValidation
 from apps.core.tests.test_api import BaseApi
@@ -16,7 +17,7 @@ from apps.referentiels.models import Mesure
 from .analyse import SYSTEME
 from .extraction import extraire
 from .models import AnalyseIA, ResultatAnalyseMesure
-from .provider import Factice, IAIndisponible, Mistral, ReponseIA
+from .provider import CompatibleOpenAI, Factice, IAIndisponible, ReponseIA, obtenir_fournisseur
 
 TEXTE = ("Politique de sécurité du système.\n"
          "Une analyse des risques est conduite selon la méthode EBIOS RM avant chaque mise en production.\n"
@@ -123,7 +124,7 @@ class AnalyseTests(BaseApi):
         envoi.assert_not_called()
         self.assertFalse(AnalyseIA.objects.exists())
         with self.assertRaises(IAIndisponible):
-            Mistral("cle", "m", "https://exemple.invalid", zdr_confirme=False).completer_json("s", "u")
+            CompatibleOpenAI("mistral", "https://exemple.invalid", "m", "cle", zdr_confirme=False).completer_json("s", "u")
 
     def test_isolation_entre_organisations(self):
         reponse = self.lancer(self.api_a, Scripte({"resultats": []}))
@@ -161,6 +162,44 @@ class AnalyseTests(BaseApi):
         r = ResultatAnalyseMesure.objects.get(analyse=analyse, mesure=self.mesure_rgs)
         self.assertIn(r.couverture, ("couvert", "partiel"))
         self.assertIn("analyse des risques", r.extraits[0]["texte"].lower())
+
+
+class FournisseursTests(SimpleTestCase):
+    @override_settings(IA_FOURNISSEUR="scaleway", IA_CLE="cle-test", IA_URL="", IA_MODELE="", IA_ZDR_CONFIRME=True)
+    def test_scaleway_requete_compatible_openai(self):
+        reponse = mock.MagicMock()
+        reponse.__enter__.return_value = io.BytesIO(json.dumps({
+            "choices": [{"message": {"content": '```json\n{"resultats": []}\n```'}}],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 3},
+        }).encode())
+        with mock.patch("urllib.request.urlopen", return_value=reponse) as envoi:
+            resultat = obtenir_fournisseur().completer_json("systeme", "utilisateur")
+        self.assertEqual(resultat.contenu, {"resultats": []})  # bloc de code toléré
+        self.assertEqual((resultat.jetons_entree, resultat.jetons_sortie), (12, 3))
+        requete = envoi.call_args.args[0]
+        self.assertEqual(requete.full_url, "https://api.scaleway.ai/v1/chat/completions")
+        self.assertEqual(requete.get_header("Authorization"), "Bearer cle-test")
+        corps = json.loads(requete.data)
+        self.assertEqual(corps["model"], "mistral-small-3.2-24b-instruct-2506")
+        self.assertEqual(corps["response_format"], {"type": "json_object"})
+
+    @override_settings(IA_FOURNISSEUR="scaleway", IA_CLE="cle-test", IA_URL="", IA_MODELE="", IA_ZDR_CONFIRME=False)
+    def test_scaleway_bloque_sans_confirmation(self):
+        with mock.patch("urllib.request.urlopen") as envoi, self.assertRaises(IAIndisponible):
+            obtenir_fournisseur().completer_json("s", "u")
+        envoi.assert_not_called()
+
+    @override_settings(IA_FOURNISSEUR="scaleway", IA_CLE="", IA_URL="", IA_MODELE="", IA_ZDR_CONFIRME=True)
+    def test_scaleway_exige_une_cle(self):
+        with self.assertRaisesMessage(IAIndisponible, "Clé d'API scaleway"):
+            obtenir_fournisseur().verifier_configuration()
+
+    @override_settings(IA_FOURNISSEUR="compatible", IA_NOM="ollama", IA_URL="http://ollama:11434/v1",
+                       IA_MODELE="mistral-small3.2", IA_CLE="", IA_ZDR_CONFIRME=True)
+    def test_compatible_local_sans_cle(self):
+        fournisseur = obtenir_fournisseur()
+        fournisseur.verifier_configuration()
+        self.assertEqual((fournisseur.nom, fournisseur.modele), ("ollama", "mistral-small3.2"))
 
 
 class ExtractionTests(BaseApi):
