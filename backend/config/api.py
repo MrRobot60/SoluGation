@@ -3,6 +3,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from apps.ai.api import AnalyseViewSet, RecommandationViewSet, ResultatViewSet
+from apps.ebios.api import ROUTES as ROUTES_EBIOS
 from apps.rapports.api import RapportViewSet
 from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
@@ -27,6 +28,8 @@ routeur.register("resultats-ia", ResultatViewSet, basename="resultat-ia")
 routeur.register("analyses-ia", AnalyseViewSet, basename="analyse-ia")
 routeur.register("recommandations-ia", RecommandationViewSet, basename="recommandation-ia")
 routeur.register("rapports", RapportViewSet, basename="rapport")
+for prefixe, vue, nom in ROUTES_EBIOS:
+    routeur.register(prefixe, vue, basename=nom)
 routeur.register("taches", TacheViewSet, basename="tache")
 routeur.register("commentaires", CommentaireViewSet, basename="commentaire")
 routeur.register("notifications", NotificationViewSet, basename="notification")

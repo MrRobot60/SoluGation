@@ -48,6 +48,10 @@ class ProjetScopedSerializer(serializers.ModelSerializer):
             cible = attrs.get(champ)
             if cible is not None and cible.projet_id != projet.id:
                 raise serializers.ValidationError({champ: "Objet inexistant."})
+        # Relations multiples vers des objets de projet : même contrôle, élément par élément.
+        for m2m in self.Meta.model._meta.many_to_many:
+            if m2m.name in attrs and any(hasattr(o, "projet_id") and o.projet_id != projet.id for o in attrs[m2m.name]):
+                raise serializers.ValidationError({m2m.name: "Objet inexistant."})
         return attrs
 
 
