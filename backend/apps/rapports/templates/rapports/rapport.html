@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rapport d'état des lieux — {{ d.projet.nom }} — v{{ rapport.version }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 22mm 18mm 20mm 18mm;
+    @top-left { content: "SoluGation · {{ css.projet|safe }}"; font: 500 8pt Inter, sans-serif; color: #6b7280; }
+    @top-right { content: "Rapport d'état des lieux · v{{ rapport.version }}{% if brouillon %} · BROUILLON{% endif %}"; font: 500 8pt Inter, sans-serif; color: {% if brouillon %}#b45309{% else %}#6b7280{% endif %}; }
+    @bottom-left { content: "{% if brouillon %}Document de travail non validé{% else %}Validé le {{ date_validation }} par {{ css.valide_par|safe }}{% endif %}"; font: 8pt Inter, sans-serif; color: #6b7280; }
+    @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 8pt Inter, sans-serif; color: #6b7280; }
+  }
+  @page couverture { margin: 0; @top-left { content: none } @top-right { content: none } @bottom-left { content: none } @bottom-right { content: none } }
+  :root { --nuit: #193a4e; --eau: #3b6f80; --texte: #1d2430; --texte-2: #5b6472; --ligne: #e3e6ea; --fond: #f4f6f8; }
+  html { font-family: Inter, "DejaVu Sans", sans-serif; font-size: 9.6pt; line-height: 1.5; color: var(--texte); }
+  body { margin: 0; }
+  {% if brouillon %}
+  body::after { content: "BROUILLON"; position: fixed; top: 42%; left: 0; right: 0; text-align: center; transform: rotate(-30deg);
+                font-size: 92pt; font-weight: 800; color: rgba(180, 83, 9, 0.07); letter-spacing: 8pt; }
+  {% endif %}
+
+  .couverture { page: couverture; height: 297mm; box-sizing: border-box; padding: 34mm 24mm 24mm; display: flex; flex-direction: column;
+                background: linear-gradient(160deg, #ffffff 0%, #ffffff 55%, #eef3f5 100%); page-break-after: always; }
+  .couverture img { width: 62mm; }
+  .couverture .surtitre { margin-top: 52mm; font-size: 10pt; font-weight: 600; letter-spacing: 1.5pt; text-transform: uppercase; color: var(--eau); }
+  .couverture h1 { margin: 4mm 0 0; font-size: 30pt; line-height: 1.1; font-weight: 800; letter-spacing: -0.5pt; color: var(--nuit); }
+  .couverture .projet { margin-top: 6mm; font-size: 15pt; font-weight: 600; }
+  .couverture .meta { margin-top: auto; width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  .couverture .meta th { width: 42mm; padding: 1mm 0; border: 0; text-align: left; vertical-align: top; font-weight: 400; color: var(--texte-2); }
+  .couverture .meta td { padding: 1mm 0; border: 0; font-weight: 600; }
+  .bandeau-statut { margin-top: 10mm; padding: 4mm 5mm; border-radius: 3mm; font-size: 9pt; }
+  .bandeau-statut.brouillon { background: #fff7ed; color: #9a3412; }
+  .bandeau-statut.valide { background: #ecfdf3; color: #166534; }
+
+  h2 { margin: 0 0 3mm; font-size: 15pt; line-height: 1.2; font-weight: 700; color: var(--nuit); letter-spacing: -0.2pt; }
+  h3 { margin: 6mm 0 2mm; font-size: 11pt; font-weight: 700; color: var(--nuit); }
+  section { margin-bottom: 8mm; }
+  section.texte p { margin: 0 0 2.5mm; text-align: justify; hyphens: auto; }
+  section.texte ul { margin: 0 0 2.5mm; padding-left: 5mm; }
+  section.texte li { margin-bottom: 1mm; }
+  .note { font-size: 8.5pt; color: var(--texte-2); }
+  .avertissement { margin: 0 0 7mm; padding: 3mm 4mm; border-left: 1mm solid var(--eau); background: var(--fond); font-size: 8.8pt; color: var(--texte-2); }
+
+  .chiffres { display: flex; gap: 3mm; margin: 0 0 7mm; }
+  .chiffre { flex: 1; padding: 3.5mm 4mm; border-radius: 3mm; background: var(--fond); }
+  .chiffre b { display: block; font-size: 17pt; line-height: 1.1; color: var(--nuit); }
+  .chiffre span { font-size: 8pt; color: var(--texte-2); }
+  .chiffre i { font-style: normal; font-size: 8pt; font-weight: 600; }
+  .hausse { color: #166534; } .baisse { color: #b91c1c; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8.4pt; margin-bottom: 4mm; }
+  thead { display: table-header-group; }
+  th { text-align: left; font-weight: 600; color: var(--texte-2); border-bottom: 0.4mm solid var(--nuit); padding: 1.6mm 2mm; }
+  td { border-bottom: 0.2mm solid var(--ligne); padding: 1.6mm 2mm; vertical-align: top; }
+  tr { page-break-inside: avoid; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .retard { color: #b91c1c; font-weight: 600; }
+
+  .barre { display: flex; height: 3mm; border-radius: 1.5mm; overflow: hidden; background: #eceff2; margin-top: 1mm; }
+  .barre span { display: block; height: 100%; }
+  .s-conforme { background: #2f855a; } .s-partiel { background: #d69e2e; } .s-manquant { background: #c53030; }
+  .s-non_applicable { background: #a0aec0; } .s-non_evalue { background: #e2e8f0; }
+  .legende { display: flex; flex-wrap: wrap; gap: 4mm; font-size: 7.8pt; color: var(--texte-2); margin-bottom: 4mm; }
+  .legende span::before { content: ""; display: inline-block; width: 2.4mm; height: 2.4mm; border-radius: 0.6mm; margin-right: 1.2mm; vertical-align: -0.2mm; background: var(--c); }
+  .pastille { display: inline-block; padding: 0.3mm 1.8mm; border-radius: 2mm; font-size: 7.6pt; font-weight: 600; white-space: nowrap; }
+  .p-manquant, .p-critique, .p-haute, .p-refuse { background: #fde8e8; color: #9b1c1c; }
+  .p-partiel, .p-moyenne, .p-attendu, .p-depose { background: #fdf3dc; color: #8a5a00; }
+  .p-valide, .p-basse { background: #e4f4ea; color: #1f6b3d; }
+  .p-non_applicable { background: #eef0f3; color: #4a5260; }
+  .saut { page-break-before: always; }
+  table.compacte { font-size: 7.8pt; }
+  table.compacte td, table.compacte th { padding: 1.2mm 1.6mm; }
+</style>
+</head>
+<body>
+
+<div class="couverture">
+  <img src="logo.png" alt="SoluGation">
+  <div class="surtitre">Rapport d'état des lieux</div>
+  <h1>Homologation de sécurité</h1>
+  <div class="projet">{{ d.projet.nom }}</div>
+  <table class="meta">
+    <tr><th>Organisation</th><td>{{ d.projet.organisation }}</td></tr>
+    <tr><th>Bien homologué</th><td>{{ d.projet.type_bien }} · niveau visé {{ d.projet.niveau_vise|lower }}</td></tr>
+    <tr><th>Référentiels</th><td>{% for r in d.referentiels %}{{ r.nom }}{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}</td></tr>
+    <tr><th>Version</th><td>{{ rapport.version }}{% if rapport.rapport_precedent %} (fait suite à la version {{ rapport.rapport_precedent.version }}){% endif %}</td></tr>
+    <tr><th>Données arrêtées au</th><td>{{ date_donnees }}</td></tr>
+    <tr><th>Établi par</th><td>{{ rapport.genere_par }}</td></tr>
+  </table>
+  {% if brouillon %}
+    <div class="bandeau-statut brouillon">Brouillon : ce document n'a pas encore été relu et validé.</div>
+  {% else %}
+    <div class="bandeau-statut valide">Validé le {{ date_validation }} par {{ rapport.valide_par }}.</div>
+  {% endif %}
+</div>
+
+<p class="avertissement">
+  Cet état des lieux décrit l'avancement du dossier à la date indiquée. Il ne vaut pas décision d'homologation, qui
+  appartient à l'autorité d'homologation.
+  {% if redaction_ia %}Le texte a été rédigé avec l'aide d'une IA ({{ analyse.fournisseur }}, {{ analyse.modele }}) à partir des données
+  du projet, puis relu{% if not brouillon %} et validé{% endif %} par un humain.{% endif %}
+</p>
+
+<div class="chiffres">
+  <div class="chiffre"><b>{{ d.conformite.conforme }}</b><span>mesures conformes</span>
+    {% if evolution.conforme %}<i class="{% if evolution.conforme > 0 %}hausse{% else %}baisse{% endif %}">{% if evolution.conforme > 0 %}+{% endif %}{{ evolution.conforme }}</i>{% endif %}</div>
+  <div class="chiffre"><b>{{ d.nb_manquements }}</b><span>manquements</span>
+    {% if evolution %}{% with e=evolution.manquant|add:evolution.partiel %}{% if e %}<i class="{% if e < 0 %}hausse{% else %}baisse{% endif %}">{% if e > 0 %}+{% endif %}{{ e }}</i>{% endif %}{% endwith %}{% endif %}</div>
+  <div class="chiffre"><b>{{ d.plan_action.ouvertes }}</b><span>tâches ouvertes{% if d.plan_action.en_retard %}, {{ d.plan_action.en_retard }} en retard{% endif %}</span></div>
+  <div class="chiffre"><b>{{ d.documents.par_statut.valide }} / {{ d.documents.total }}</b><span>documents validés</span></div>
+</div>
+{% if evolution and evolution_visible %}<p class="note" style="margin-top:-5mm;margin-bottom:6mm">Écarts mesurés depuis la version {{ rapport.rapport_precedent.version }} du rapport.</p>{% endif %}
+
+{% for s in sections %}
+<section class="texte">
+  <h2>{{ s.titre }}</h2>
+  {% for b in s.blocs %}
+    {% if b.type == "ul" %}<ul>{% for i in b.items %}<li>{{ i }}</li>{% endfor %}</ul>{% else %}<p>{{ b.texte }}</p>{% endif %}
+  {% endfor %}
+</section>
+{% endfor %}
+
+<section class="saut">
+  <h2>Annexe A — Conformité par référentiel</h2>
+  <div class="legende">
+    <span style="--c:#2f855a">Conforme</span><span style="--c:#d69e2e">Partiel</span><span style="--c:#c53030">Manquant</span>
+    <span style="--c:#a0aec0">Non applicable</span><span style="--c:#e2e8f0">Non évalué</span>
+  </div>
+  <table>
+    <thead><tr><th>Référentiel</th><th class="n">Mesures</th><th class="n">Évaluées</th><th class="n">Conformes</th><th class="n">Partielles</th><th class="n">Manquantes</th><th class="n">Conformité</th></tr></thead>
+    <tbody>
+    {% for r in referentiels %}
+      <tr>
+        <td>{{ r.nom }} <span class="note">{{ r.version }}</span>
+          <div class="barre">{% for cle, libelle, n, pct in r.segments %}{% if n %}<span class="s-{{ cle }}" style="width:{{ pct|floatformat:"2u" }}%"></span>{% endif %}{% endfor %}</div></td>
+        <td class="n">{{ r.total }}</td><td class="n">{{ r.taux_evaluation }} %</td><td class="n">{{ r.statuts.conforme }}</td>
+        <td class="n">{{ r.statuts.partiel }}</td><td class="n">{{ r.statuts.manquant }}</td><td class="n">{{ r.taux_conformite }} %</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">Taux de conformité : mesures conformes rapportées aux mesures applicables.</p>
+</section>
+
+<section>
+  <h2>Annexe B — Manquements</h2>
+  {% if d.manquements %}
+  <table class="compacte">
+    <colgroup><col style="width:17%"><col style="width:45%"><col style="width:11%"><col style="width:27%"></colgroup>
+    <thead><tr><th>Mesure</th><th>Intitulé</th><th>État</th><th>Constat</th></tr></thead>
+    <tbody>
+    {% for m in d.manquements %}
+      <tr><td style="white-space:nowrap">{{ m.referentiel }} {{ m.identifiant }}</td><td>{{ m.intitule|truncatechars:170 }}</td>
+        <td><span class="pastille p-{{ m.statut }}">{% if m.statut == "manquant" %}Manquant{% else %}Partiel{% endif %}</span></td>
+        <td>{{ m.justification|default:"—" }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if d.nb_manquements > d.manquements|length %}<p class="note">{{ d.manquements|length }} premiers manquements sur {{ d.nb_manquements }}.</p>{% endif %}
+  {% else %}<p>Aucun manquement constaté à ce jour.</p>{% endif %}
+</section>
+
+<section>
+  <h2>Annexe C — Dossier documentaire</h2>
+  <table>
+    <thead><tr><th>Document attendu</th><th>État</th><th class="n">Versions</th><th>Responsable</th><th>Échéance</th></tr></thead>
+    <tbody>
+    {% for x in documents %}
+      <tr><td>{{ x.intitule }}{% if not x.obligatoire %} <span class="note">(facultatif)</span>{% endif %}</td>
+        <td><span class="pastille p-{{ x.statut }}">{{ x.statut_libelle }}</span></td><td class="n">{{ x.versions }}</td>
+        <td>{{ x.responsable|default:"—" }}{% if x.responsable_role %} <span class="note">{{ x.responsable_role }}</span>{% endif %}</td>
+        <td class="{% if x.en_retard %}retard{% endif %}">{{ x.echeance_fr|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="5">Aucun document attendu.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Annexe D — Plan d'action (tâches ouvertes)</h2>
+  <table>
+    <thead><tr><th>Tâche</th><th>Mesure</th><th>Priorité</th><th>Responsable</th><th>Échéance</th></tr></thead>
+    <tbody>
+    {% for t in taches %}
+      <tr><td>{{ t.titre }} <span class="note">· {{ t.statut }}</span></td><td style="white-space:nowrap">{{ t.mesure|default:"—" }}</td>
+        <td><span class="pastille p-{{ t.priorite }}">{{ t.priorite_libelle }}</span></td>
+        <td>{{ t.responsable|default:"—" }}</td><td class="{% if t.en_retard %}retard{% endif %}">{{ t.echeance_fr|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="5">Aucune tâche ouverte.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Annexe E — Acteurs du projet</h2>
+  <table>
+    <thead><tr><th>Nom</th><th>Rôle</th><th>Organisme</th></tr></thead>
+    <tbody>{% for a in d.acteurs %}<tr><td>{{ a.nom }}</td><td>{{ a.role }}</td><td>{{ a.organisme|default:"—" }}</td></tr>{% endfor %}</tbody>
+  </table>
+  <p class="note">Rapport généré par SoluGation le {{ aujourd_hui }} à partir des données arrêtées au {{ date_donnees }}.</p>
+</section>
+
+</body>
+</html>

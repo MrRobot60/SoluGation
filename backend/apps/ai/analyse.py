@@ -250,9 +250,12 @@ def analyse_documentaire(analyse, fournisseur, bilan):
 
 
 def _traitement(type_analyse):
+    from apps.rapports.redaction import rediger
+
     from .recommandations import recommander
 
-    return {AnalyseIA.Type.ANALYSE_DOCUMENTAIRE: analyse_documentaire, AnalyseIA.Type.RECOMMANDATION: recommander}[type_analyse]
+    return {AnalyseIA.Type.ANALYSE_DOCUMENTAIRE: analyse_documentaire, AnalyseIA.Type.RECOMMANDATION: recommander,
+            AnalyseIA.Type.REDACTION_RAPPORT: rediger}[type_analyse]
 
 
 def executer(analyse_id):
@@ -287,7 +290,8 @@ def _cloturer(analyse):
     nb = (analyse.resultats if documentaire else analyse.recommandations).count()
     JournalAudit.enregistrer(organisation=projet.organisation, action=JournalAudit.Action.MODIFICATION, objet=analyse,
                              projet=projet, donnees={"etat": analyse.etat, "resultats": nb, "erreur": analyse.erreur})
-    if analyse.etat != AnalyseIA.Etat.TERMINEE or not nb:
+    # La rédaction d'un rapport se suit à l'écran : pas de notification.
+    if analyse.etat != AnalyseIA.Etat.TERMINEE or not nb or analyse.type_analyse == AnalyseIA.Type.REDACTION_RAPPORT:
         return
     pluriel = "s" if nb > 1 else ""
     if documentaire:

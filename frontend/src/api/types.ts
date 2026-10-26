@@ -332,3 +332,38 @@ export interface NotificationApp {
   lue_le: string | null;
   cree_le: string;
 }
+
+export interface SectionRapport {
+  cle: string;
+  titre: string;
+  texte: string;
+  source: "ia" | "automatique" | "modifie";
+  alertes: string[];
+}
+
+export interface Rapport {
+  id: string;
+  projet: string;
+  version: number;
+  titre: string;
+  sections: SectionRapport[];
+  statut_validation: "a_valider" | "valide" | "rejete";
+  valide_par_nom: string;
+  valide_le: string | null;
+  genere_par_nom: string;
+  cree_le: string;
+  modifie_le: string;
+  pdf_genere_le: string | null;
+  sha256_pdf: string;
+  rapport_precedent: string | null;
+  redaction: { etat: EtatAnalyse | "sans_ia"; erreur: string; fournisseur: string; modele: string };
+  chiffres: {
+    conformite: Record<StatutConformite | "total", number>;
+    nb_manquements: number;
+    taches_ouvertes: number;
+    documents_valides: number;
+    documents_total: number;
+    evolution: { conforme: number; manquant: number; partiel: number; non_evalue: number; taches_ouvertes: number; documents_valides: number } | null;
+  };
+  avertissement?: string;
+}

@@ -3,6 +3,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from apps.ai.api import AnalyseViewSet, RecommandationViewSet, ResultatViewSet
+from apps.rapports.api import RapportViewSet
 from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
@@ -25,6 +26,7 @@ routeur.register("preuves", PreuveViewSet, basename="preuve")
 routeur.register("resultats-ia", ResultatViewSet, basename="resultat-ia")
 routeur.register("analyses-ia", AnalyseViewSet, basename="analyse-ia")
 routeur.register("recommandations-ia", RecommandationViewSet, basename="recommandation-ia")
+routeur.register("rapports", RapportViewSet, basename="rapport")
 routeur.register("taches", TacheViewSet, basename="tache")
 routeur.register("commentaires", CommentaireViewSet, basename="commentaire")
 routeur.register("notifications", NotificationViewSet, basename="notification")

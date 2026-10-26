@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, Rapport, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -304,5 +304,40 @@ export function useLireNotifications() {
     mutationFn: (id?: string) =>
       api<unknown>(id ? `/api/notifications/${id}/lue/` : "/api/notifications/tout-lu/", { methode: "POST" }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
+export function useRapports(projetId: string) {
+  return useQuery({
+    queryKey: ["rapports", projetId],
+    queryFn: () => toutesLesPages<Rapport>(`/api/rapports/?projet=${projetId}`),
+    enabled: Boolean(projetId),
+    // Rédaction par l'IA en arrière-plan : on suit son avancement.
+    refetchInterval: (q) => (q.state.data?.some((r) => r.redaction.etat === "en_attente" || r.redaction.etat === "en_cours") ? 3000 : false),
+  });
+}
+
+export function useGenererRapport(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<Rapport>("/api/rapports/", { methode: "POST", corps: { projet: projetId } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["rapports", projetId] }),
+  });
+}
+
+export function useEditerRapport(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, sections }: { id: string; sections: { cle: string; texte: string }[] }) =>
+      api<Rapport>(`/api/rapports/${id}/`, { methode: "PATCH", corps: { sections } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["rapports", projetId] }),
+  });
+}
+
+export function useValiderRapport(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<Rapport>(`/api/rapports/${id}/valider/`, { methode: "POST" }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["rapports", projetId] }),
   });
 }

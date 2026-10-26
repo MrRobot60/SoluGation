@@ -7,3 +7,4 @@ gunicorn>=23,<24
 pypdf>=5,<6
 drf-spectacular>=0.28,<0.29
 defusedxml>=0.7,<0.8
+weasyprint>=66,<67

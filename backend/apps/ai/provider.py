@@ -108,7 +108,7 @@ class CompatibleOpenAI(Fournisseur):
 
 class Factice(Fournisseur):
     """Fournisseur hors ligne, pour le développement et les démonstrations sans clé : rapproche les mots de
-    l'intitulé de chaque mesure des phrases du document, et produit des recommandations génériques. Aucune donnée ne sort de la machine. Ses résultats
+    l'intitulé de chaque mesure des phrases du document, et produit des recommandations et une rédaction de rapport génériques. Aucune donnée ne sort de la machine. Ses résultats
     sont marqués `factice` et n'ont aucune valeur d'analyse."""
 
     nom = "factice"
@@ -140,7 +140,17 @@ class Factice(Fournisseur):
             })
         return ReponseIA({"recommandations": recos}, len(utilisateur) // 4, 0)
 
+    def _rapport(self, utilisateur):
+        d = json.loads(utilisateur.split("\n", 1)[1])
+        c = d["conformite"]
+        texte = (f"Rédaction de test hors ligne : {c['conforme']} mesures conformes, {d['nb_manquements']} manquements, "
+                 f"{d['plan_action']['ouvertes']} tâches ouvertes.")
+        return ReponseIA({"sections": [{"cle": cle, "texte": texte} for cle in
+                                       ("synthese", "conformite", "documents", "plan_action", "suite")]}, len(utilisateur) // 4, 0)
+
     def completer_json(self, systeme, utilisateur):
+        if utilisateur.startswith("Données du projet (JSON)"):
+            return self._rapport(utilisateur)
         if "<manquement " in utilisateur:
             return self._recommandations(utilisateur)
         document = self.DOCUMENT.search(utilisateur)
