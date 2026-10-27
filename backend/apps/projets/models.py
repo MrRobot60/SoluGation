@@ -47,6 +47,9 @@ class Projet(TenantModel):
     # Revue périodique
     periodicite_revue_mois = models.PositiveSmallIntegerField(default=12)
     date_prochaine_revue = models.DateField(null=True, blank=True)
+    # Rappels déjà envoyés (pour quelle date de revue) : un rappel par échéance, pas à chaque passage.
+    rappel_revue_pour = models.DateField(null=True, blank=True, editable=False)
+    rappel_retard_pour = models.DateField(null=True, blank=True, editable=False)
 
     # Décision d'homologation : toujours humaine, jamais issue de l'IA.
     decision = models.CharField(max_length=20, choices=Decision.choices, blank=True)

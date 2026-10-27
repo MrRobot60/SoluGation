@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.http import HttpResponse
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -8,7 +9,8 @@ from rest_framework.response import Response
 
 from apps.audit.models import JournalAudit
 from apps.comptes.models import Role, Utilisateur
-from apps.core.api.acces import peut_decider_projet, peut_ecrire_projet, projets_accessibles
+from apps.core.api.acces import (est_archive, peut_administrer_projet, peut_decider_projet, peut_ecrire_projet,
+                                 peut_prononcer_homologation, projets_accessibles)
 from apps.core.api.base import JournaliseMixin, NomField, ProjetScopedSerializer, ProjetScopedViewSet
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import EcritureSelonRole, MembreOrganisation
@@ -16,6 +18,7 @@ from apps.referentiels.api import referentiels_accessibles
 from apps.referentiels.models import Mesure
 
 from .checklist import generer_checklist
+from .reglages import STATUTS_MANUELS, DecisionHomologationSerializer, ajouter_mois, appliquer_decision, calendrier_ics
 from .tableau_de_bord import tableau_de_bord as calculer_tableau_de_bord
 from .models import (MAX_REFERENTIELS_PAR_PROJET, ActeurProjet, DocumentAttendu, Projet, ProjetReferentiel,
                      StatutMesure)
@@ -84,6 +87,17 @@ class ProjetSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Entre 1 et {MAX_REFERENTIELS_PAR_PROJET} référentiels.")
         return valeur
 
+    def validate_statut(self, valeur):
+        # Homologué / refusé : décision de l'autorité d'homologation ; archivé : action dédiée.
+        if self.instance is not None and valeur != self.instance.statut and valeur not in STATUTS_MANUELS:
+            raise serializers.ValidationError("Ce statut résulte d'une décision ou d'un archivage, pas d'une modification.")
+        return valeur
+
+    def validate_periodicite_revue_mois(self, valeur):
+        if not 1 <= valeur <= 60:
+            raise serializers.ValidationError("Entre 1 et 60 mois.")
+        return valeur
+
     def validate_nom(self, valeur):
         qs = Projet.objects.filter(organisation_id=self.context["request"].user.organisation_id, nom=valeur)
         if self.instance:
@@ -138,6 +152,11 @@ class ProjetViewSet(JournaliseMixin, mixins.CreateModelMixin, mixins.ListModelMi
     def get_queryset(self):
         return projets_accessibles(self.request.user).prefetch_related("referentiels")
 
+    def perform_update(self, serializer):
+        if not peut_administrer_projet(self.request.user, serializer.instance):
+            raise PermissionDenied("Les réglages reviennent au chef de projet, au RSSI, à l'autorité d'homologation ou à l'administrateur.")
+        super().perform_update(serializer)
+
     def perform_create(self, serializer):
         u = self.request.user
         projet = serializer.save(organisation=u.organisation, cree_par=u)
@@ -146,6 +165,81 @@ class ProjetViewSet(JournaliseMixin, mixins.CreateModelMixin, mixins.ListModelMi
             "acteurs": ActeurProjet.objects.filter(projet=projet).count(),
             "checklist": [d.intitule for d in projet.checklist_creee],
         })
+
+    @action(detail=True, methods=["post"], serializer_class=DecisionHomologationSerializer)
+    @transaction.atomic
+    def decision(self, request, pk=None):
+        """Décision d'homologation : l'autorité d'homologation du projet, et elle seule (jamais l'IA)."""
+        projet = self.get_object()
+        if not peut_prononcer_homologation(request.user, projet):
+            raise PermissionDenied("Seule l'autorité d'homologation du projet prononce la décision.")
+        d = DecisionHomologationSerializer(data=request.data)
+        d.is_valid(raise_exception=True)
+        appliquer_decision(projet, request.user, d.validated_data)
+        donnees = {"decision": projet.decision, "commentaire": d.validated_data.get("commentaire", ""),
+                   "date_fin_validite": projet.date_fin_validite.isoformat() if projet.date_fin_validite else None}
+        journaliser(request, JournalAudit.Action.DECISION, projet, projet, donnees)
+        from apps.suivi.notifications import acteurs_concernes, notifier
+
+        notifier(projet, auteur=request.user, type_evenement="homologation.decision",
+                 titre=f"Décision d'homologation : {projet.get_decision_display().lower()}",
+                 message=d.validated_data.get("commentaire", "") or (f"Valable jusqu'au {projet.date_fin_validite:%d/%m/%Y}." if projet.date_fin_validite else ""),
+                 lien=f"/projets/{projet.pk}/reglages", destinataires=acteurs_concernes(projet, roles=("chef-projet", "rssi")))
+        return Response(ProjetSerializer(projet, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="revue-faite")
+    def revue_faite(self, request, pk=None):
+        """La revue périodique a eu lieu : la suivante est fixée selon la périodicité."""
+        projet = self.get_object()
+        if not peut_administrer_projet(request.user, projet):
+            raise PermissionDenied("Réglage réservé aux administrateurs du projet.")
+        precedente = projet.date_prochaine_revue
+        projet.date_prochaine_revue = ajouter_mois(timezone.localdate(), projet.periodicite_revue_mois)
+        if projet.date_fin_validite:
+            projet.date_prochaine_revue = min(projet.date_prochaine_revue, projet.date_fin_validite)
+        projet.save(update_fields=["date_prochaine_revue", "modifie_le"])
+        journaliser(request, JournalAudit.Action.MODIFICATION, projet, projet, {
+            "revue_faite_le": timezone.localdate().isoformat(), "revue_prevue": precedente.isoformat() if precedente else None,
+            "prochaine_revue": projet.date_prochaine_revue.isoformat()})
+        return Response(ProjetSerializer(projet, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[MembreOrganisation])
+    def archiver(self, request, pk=None):
+        return self._archivage(request, archiver=True)
+
+    @action(detail=True, methods=["post"], permission_classes=[MembreOrganisation])
+    def desarchiver(self, request, pk=None):
+        return self._archivage(request, archiver=False)
+
+    def _archivage(self, request, archiver):
+        projet = self.get_object()
+        if not peut_administrer_projet(request.user, projet, meme_archive=True):
+            raise PermissionDenied("Réservé aux administrateurs du projet.")
+        if archiver == est_archive(projet):
+            return Response({"detail": "Le projet est déjà dans cet état."}, status=status.HTTP_409_CONFLICT)
+        # Au désarchivage : le statut d'avant (homologué, refusé…) est repris du journal, sinon « en cours ».
+        avant = projet.statut
+        if archiver:
+            projet.statut = Projet.Statut.ARCHIVE
+        else:
+            derniere = (JournalAudit.objects.filter(projet=projet, objet_id=str(projet.pk), donnees__archivage="archive")
+                        .order_by("-id").values_list("donnees", flat=True).first())
+            projet.statut = (derniere or {}).get("statut_precedent") or Projet.Statut.EN_COURS
+        projet.save(update_fields=["statut", "modifie_le"])
+        journaliser(request, JournalAudit.Action.MODIFICATION, projet, projet,
+                    {"archivage": "archive" if archiver else "desarchive", "statut_precedent": avant})
+        return Response(ProjetSerializer(projet, context={"request": request}).data)
+
+    @action(detail=True, methods=["get"], url_path="calendrier")
+    def calendrier(self, request, pk=None):
+        """Échéances du projet au format iCalendar, à importer dans un agenda (si le calendrier est activé)."""
+        projet = self.get_object()
+        if not projet.calendrier_actif:
+            return Response({"detail": "Le calendrier est désactivé pour ce projet."}, status=status.HTTP_404_NOT_FOUND)
+        journaliser(request, JournalAudit.Action.EXPORT, projet, projet, {"export": "calendrier"})
+        reponse = HttpResponse(calendrier_ics(projet), content_type="text/calendar; charset=utf-8")
+        reponse["Content-Disposition"] = f'attachment; filename="solugation-{projet.pk}.ics"'
+        return reponse
 
     @action(detail=True, methods=["get"], url_path="tableau-de-bord")
     def tableau_de_bord(self, request, pk=None):
@@ -202,6 +296,8 @@ class ActeurProjetSerializer(ProjetScopedSerializer):
     class Meta:
         model = ActeurProjet
         fields = ["id", "projet", "utilisateur", "nom", "email", "organisme", "role", "role_libelle", "role_code", "affichage"]
+        # Le validateur d'unicité automatique rendrait « utilisateur » obligatoire : un contact externe n'en a pas.
+        validators = []
 
     def get_affichage(self, obj) -> str:
         return nom_acteur(obj)
@@ -212,12 +308,47 @@ class ActeurProjetSerializer(ProjetScopedSerializer):
         email = attrs.get("email", getattr(self.instance, "email", ""))
         if utilisateur is None and not email:
             raise serializers.ValidationError("Un acteur sans compte doit avoir un email.")
+        projet, role = attrs.get("projet") or self.instance.projet, attrs.get("role") or self.instance.role
+        doublon = ActeurProjet.objects.filter(projet=projet, role=role)
+        doublon = doublon.filter(utilisateur=utilisateur) if utilisateur else doublon.filter(utilisateur=None, email__iexact=email)
+        if self.instance is not None:
+            doublon = doublon.exclude(pk=self.instance.pk)
+        if doublon.exists():
+            raise serializers.ValidationError("Cette personne a déjà ce rôle dans le projet.")
         return attrs
 
 
 class ActeurProjetViewSet(ProjetScopedViewSet):
+    """Acteurs du projet. Ajout, changement de rôle et retrait : administrateurs du projet ; il reste toujours
+    au moins un chef de projet (sinon plus personne ne pourrait régler le projet)."""
+
     queryset = ActeurProjet.objects.select_related("utilisateur", "role")
     serializer_class = ActeurProjetSerializer
+
+    def _autoriser(self, projet):
+        if not peut_administrer_projet(self.request.user, projet):
+            raise PermissionDenied("La gestion des acteurs revient aux administrateurs du projet.")
+
+    def _dernier_chef(self, acteur):
+        return acteur.role.code == ROLE_CREATEUR and not ActeurProjet.objects.filter(
+            projet=acteur.projet, role__code=ROLE_CREATEUR).exclude(pk=acteur.pk).exists()
+
+    def perform_create(self, serializer):
+        self._autoriser(serializer.validated_data["projet"])
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        self._autoriser(serializer.instance.projet)
+        nouveau = serializer.validated_data.get("role")
+        if nouveau is not None and nouveau.code != ROLE_CREATEUR and self._dernier_chef(serializer.instance):
+            raise serializers.ValidationError({"role": "Le projet doit garder au moins un chef de projet."})
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        self._autoriser(instance.projet)
+        if self._dernier_chef(instance):
+            raise serializers.ValidationError("Le projet doit garder au moins un chef de projet.")
+        super().perform_destroy(instance)
 
 
 class ProjetReferentielSerializer(ProjetScopedSerializer):
@@ -233,7 +364,14 @@ class ProjetReferentielViewSet(ProjetScopedViewSet):
     serializer_class = ProjetReferentielSerializer
     http_method_names = ["get", "post", "delete", "head", "options"]
 
+    def perform_create(self, serializer):
+        if not peut_administrer_projet(self.request.user, serializer.validated_data["projet"]):
+            raise PermissionDenied("Les référentiels se règlent par les administrateurs du projet.")
+        super().perform_create(serializer)
+
     def perform_destroy(self, instance):
+        if not peut_administrer_projet(self.request.user, instance.projet):
+            raise PermissionDenied("Les référentiels se règlent par les administrateurs du projet.")
         if ProjetReferentiel.objects.filter(projet=instance.projet).count() <= 1:
             raise serializers.ValidationError("Un projet garde au moins un référentiel.")
         super().perform_destroy(instance)

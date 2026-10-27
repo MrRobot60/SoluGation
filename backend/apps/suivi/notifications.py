@@ -34,11 +34,12 @@ def acteurs_concernes(projet, *, responsable=None, roles=("chef-projet",), en_pl
 
 
 def notifier(projet, *, auteur, type_evenement, titre, message, lien, destinataires):
+    """`auteur=None` : message du système (rappel), envoyé à tous les destinataires."""
     if not projet.notifications_actives:
         return []
-    utilisateurs = [d for d in destinataires if not isinstance(d, str) and d.pk != auteur.pk and d.is_active
+    utilisateurs = [d for d in destinataires if not isinstance(d, str) and (auteur is None or d.pk != auteur.pk) and d.is_active
                     and d.organisation_id == projet.organisation_id]
-    externes = [d for d in destinataires if isinstance(d, str) and d.lower() != auteur.email.lower()]
+    externes = [d for d in destinataires if isinstance(d, str) and (auteur is None or d.lower() != auteur.email.lower())]
     notifications = [
         Notification.objects.create(organisation=projet.organisation, destinataire=u, projet=projet,
                                     type_evenement=type_evenement, titre=titre[:200], message=message, lien=lien)
@@ -53,7 +54,7 @@ def notifier(projet, *, auteur, type_evenement, titre, message, lien, destinatai
 
 def _envoyer(projet, auteur, titre, message, lien, adresses, ids_notifications):
     contexte = {
-        "titre": titre, "message": message, "projet": projet.nom, "auteur": str(auteur),
+        "titre": titre, "message": message, "projet": projet.nom, "auteur": str(auteur) if auteur else "SoluGation",
         "lien": f"{settings.FRONTEND_URL}{lien}", "logo": f"{settings.FRONTEND_URL}/marque/icone-128.png",
     }
     sujet = f"[SoluGation] {projet.nom} : {titre}"[:200]

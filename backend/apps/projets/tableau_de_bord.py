@@ -1,12 +1,13 @@
 """Agrégats du tableau de bord d'un projet, calculés pour l'utilisateur qui le consulte."""
 
-from datetime import date
+from datetime import date, timedelta
 
 from django.db.models import Count, Q
 
 from apps.ai.models import AnalyseIA, ResultatAnalyseMesure
 from apps.audit.models import JournalAudit
-from apps.core.api.acces import peut_decider_projet, peut_ecrire_projet
+from apps.core.api.acces import (peut_administrer_projet, peut_decider_projet, peut_ecrire_projet,
+                                 peut_prononcer_homologation)
 from apps.core.models import StatutValidation
 from apps.referentiels.models import Mesure
 from apps.suivi.models import Tache
@@ -72,6 +73,12 @@ def _pour_vous(projet, utilisateur, aujourd_hui):
         if n := risques.filter(date_revue__lt=aujourd_hui).count():
             elements.append({"type": "decision", "id": None, "titre": f"{n} risque(s) à revoir", "lien": "risques",
                              "detail": "Date de revue dépassée", "echeance": aujourd_hui, "en_retard": True})
+    if projet.date_prochaine_revue and projet.statut != "archive" and peut_administrer_projet(utilisateur, projet) \
+            and projet.date_prochaine_revue <= aujourd_hui + timedelta(days=30):
+        retard = projet.date_prochaine_revue < aujourd_hui
+        elements.append({"type": "decision", "id": None, "lien": "reglages", "echeance": projet.date_prochaine_revue, "en_retard": retard,
+                         "titre": "Revue périodique en retard" if retard else "Revue périodique à préparer",
+                         "detail": f"Prévue le {projet.date_prochaine_revue:%d/%m/%Y}"})
     # En retard d'abord, puis par échéance (sans échéance en dernier).
     elements.sort(key=lambda e: (not e["en_retard"], e["echeance"] or date.max))
     return elements
@@ -115,6 +122,11 @@ def tableau_de_bord(projet, utilisateur, aujourd_hui=None):
             "ebios_active": projet.ebios_active, "date_prochaine_revue": projet.date_prochaine_revue,
             "lecture_seule": not peut_ecrire_projet(utilisateur, projet),
             "peut_decider": peut_decider_projet(utilisateur, projet),
+            "peut_administrer": peut_administrer_projet(utilisateur, projet, meme_archive=True),
+            "peut_prononcer": peut_prononcer_homologation(utilisateur, projet),
+            "archive": projet.statut == "archive", "decision": projet.decision, "decision_libelle": projet.get_decision_display(),
+            "date_decision": projet.date_decision, "date_fin_validite": projet.date_fin_validite,
+            "decision_par": str(projet.decision_par or ""), "periodicite_revue_mois": projet.periodicite_revue_mois,
         },
         "referentiels": referentiels,
         "evaluation": {"evaluees": total - non_evalues, "total": total},
