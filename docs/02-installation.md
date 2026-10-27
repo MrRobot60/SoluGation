@@ -2,7 +2,7 @@
 
 Cette page décrit l'installation avec **Docker Compose**, telle que fournie dans le dépôt. Elle convient au développement, à l'évaluation et aux tests avec des collègues sur un réseau maîtrisé.
 
-> **Production.** Le `docker-compose.yml` actuel lance les serveurs de développement (Django `runserver`, Vite) et un relais de mails de test. Une configuration de production (serveur d'application, interface compilée, HTTPS, sauvegardes) est listée dans [ce qui reste à faire avant publication](14-avant-publication.md). En attendant, n'exposez pas cette installation sur Internet.
+> **Production.** Le `docker-compose.yml` décrit ici lance les serveurs de développement (Django `runserver`, Vite) et un relais de mails de test : ne l'exposez pas sur Internet. Pour un serveur accessible par vos utilisateurs (HTTPS, sauvegardes, tâches planifiées), suivez [Déployer en production](15-production.md).
 
 ## 1. Prérequis
 
@@ -113,20 +113,13 @@ Les migrations s'appliquent automatiquement au démarrage du serveur. Si une dé
 
 ## 8. Sauvegarder et restaurer
 
-Les données vivent dans deux volumes Docker : `solugation_postgres_data` (base) et `solugation_stockage_data` (fichiers déposés, preuves, PDF).
+En développement, les données vivent dans deux volumes Docker : `solugation_postgres_data` (base) et `solugation_stockage_data` (fichiers). Pour une copie ponctuelle de la base :
 
 ```bash
-# Base de données
 docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > sauvegarde-$(date +%F).dump
-# Fichiers
-docker run --rm -v solugation_stockage_data:/donnees -v "$PWD":/sortie alpine tar czf /sortie/fichiers-$(date +%F).tgz -C /donnees .
 ```
 
-Restauration de la base (sur une base vide) :
-
-```bash
-docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < sauvegarde-AAAA-MM-JJ.dump
-```
+En production, les scripts `scripts/sauvegarder.sh` et `scripts/restaurer.sh` sauvegardent base et fichiers avec empreintes : voir [production](15-production.md#6-sauvegardes).
 
 Sauvegardez aussi `.env` (dans un coffre) : sans `DJANGO_SECRET_KEY`, la clé d'API de l'IA enregistrée à l'écran ne peut plus être déchiffrée.
 

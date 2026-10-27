@@ -9,3 +9,4 @@ drf-spectacular>=0.28,<0.29
 defusedxml>=0.7,<0.8
 weasyprint>=66,<67
 cryptography>=46,<47
+whitenoise>=6.9,<7

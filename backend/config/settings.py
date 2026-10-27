@@ -20,8 +20,12 @@ if (BASE_DIR.parent / ".env").exists():
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
-ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
-CSRF_TRUSTED_ORIGINS = env("DJANGO_CSRF_TRUSTED_ORIGINS")
+# Derrière le proxy de production uniquement : l'adresse du client est lue dans X-Forwarded-For.
+SOLUGATION_PROXY_DE_CONFIANCE = env.bool("SOLUGATION_PROXY_DE_CONFIANCE", default=False)
+# Production : le nom de domaine public suffit, les listes s'en déduisent (surchargeables).
+SOLUGATION_DOMAINE = env("SOLUGATION_DOMAINE", default="")
+ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS") or ([SOLUGATION_DOMAINE] if SOLUGATION_DOMAINE else [])
+CSRF_TRUSTED_ORIGINS = env("DJANGO_CSRF_TRUSTED_ORIGINS") or ([f"https://{SOLUGATION_DOMAINE}"] if SOLUGATION_DOMAINE else [])
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -50,6 +54,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.AdresseClientMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # fichiers statiques de l'admin et de l'API en production
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -117,7 +123,7 @@ if env("S3_SSE"):
 
 STORAGES = {
     "default": {"BACKEND": "storages.backends.s3.S3Storage"},
-    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
 # Données d'import des référentiels : sources/ (téléchargements) et private/ (copies licenciées).
@@ -146,7 +152,7 @@ FILE_UPLOAD_HANDLERS = [
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 # Mails : console par défaut ; SMTP dès que EMAIL_HOST est défini (Mailpit en dev, relais SMTP en prod).
-FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
+FRONTEND_URL = env("FRONTEND_URL", default=f"https://{SOLUGATION_DOMAINE}" if SOLUGATION_DOMAINE else "http://localhost:5173")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="SoluGation <notifications@solugation.local>")
 if env("EMAIL_HOST", default=""):
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -168,6 +174,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"connexion": "10/min"},
+    "NUM_PROXIES": 1 if SOLUGATION_PROXY_DE_CONFIANCE else None,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -187,10 +194,14 @@ X_FRAME_OPTIONS = "DENY"
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
+    SECURE_REDIRECT_EXEMPT = [r"^api/sante/$"]  # sonde interne du conteneur, en HTTP
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # Préchargement HSTS (liste des navigateurs) : engagement quasi irréversible pour le domaine, laissé au choix
+    # de l'exploitant.
+    SILENCED_SYSTEM_CHECKS = ["security.W021"]
 
 LOGGING = {
     "version": 1,
@@ -215,5 +226,7 @@ MISTRAL_API_KEY = env("MISTRAL_API_KEY", default="")
 MISTRAL_MODELE = env("MISTRAL_MODELE", default="mistral-medium-latest")
 MISTRAL_URL = env("MISTRAL_URL", default="https://api.mistral.ai/v1")
 MISTRAL_ZDR_CONFIRME = env.bool("MISTRAL_ZDR_CONFIRME", default=False)
-# Analyses exécutées dans un fil d'arrière-plan (à remplacer par une file de tâches en prod) ; synchrones en test.
+# Exécution des analyses : « fil » (fil d'arrière-plan du serveur, développement) ou « taches » (service dédié
+# `executer_taches`, production : survit aux redémarrages du serveur web). Synchrones en test.
+IA_EXECUTION = env("IA_EXECUTION", default="fil")
 IA_SYNCHRONE = env.bool("IA_SYNCHRONE", default=False)

@@ -1,0 +1,45 @@
+# Proxy de production SoluGation : HTTPS automatique (Let's Encrypt, ou autorité interne pour « localhost »),
+# interface compilée, et /api, /admin, /static transmis au serveur Django.
+{
+	admin off
+}
+
+{$SOLUGATION_DOMAINE} {
+	encode zstd gzip
+
+	# Taille maximale d'un envoi : celle de l'application (UPLOAD_MAX_MO) + marge pour l'enveloppe multipart.
+	request_body {
+		max_size {$SOLUGATION_ENVOI_MAX_MO}MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+
+	@django path /api/* /admin /admin/* /static/*
+	handle @django {
+		# Caddy remplace X-Forwarded-For par l'adresse réelle du client (lue par le journal d'audit).
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		header X-Frame-Options "DENY"
+		@immuables path /assets/*
+		header @immuables Cache-Control "public, max-age=31536000, immutable"
+		@pages not path /assets/*
+		header @pages Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

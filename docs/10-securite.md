@@ -5,7 +5,7 @@
 - Chaque requête est filtrée par **organisation** ; dans une organisation, par **projets accessibles** (ceux dont l'utilisateur est acteur, ou tous pour l'administrateur). Une ressource d'une autre organisation répond « inexistant » (404), sans révéler son existence.
 - Chaque lien entre objets (clés étrangères **et relations multiples**) est contrôlé : impossible de rattacher un objet d'un autre projet, donc d'une autre organisation.
 - Les fichiers sont rangés sous un préfixe propre à l'organisation, avec un nom régénéré ; le stockage n'est jamais exposé au navigateur (téléchargement servi et tracé par le serveur).
-- Près de 190 tests automatisés vérifient ces règles (isolation, droits, sécurité des entrées).
+- Près de 200 tests automatisés vérifient ces règles (isolation, droits, sécurité des entrées).
 
 ## Authentification
 
@@ -30,9 +30,15 @@
 
 ## Chiffrement
 
-- **En transit** : HTTPS imposé hors développement (redirection, HSTS, cookies sécurisés). La terminaison TLS se fait sur le proxy placé devant l'application.
+- **En transit** : HTTPS imposé hors développement (redirection, HSTS, cookies sécurisés). En [production](15-production.md), Caddy termine le TLS (certificat Let's Encrypt automatique) ; base, stockage et serveur ne sont pas exposés.
 - **Au repos** : activez le chiffrement côté serveur du stockage (`S3_SSE=AES256` chez un hébergeur S3) et le chiffrement des disques de la base. La **clé d'API de l'IA** est chiffrée en base (Fernet).
 - **Secrets** hors du dépôt : `.env` exclu de Git.
+
+## En-têtes et ressources
+
+- Interface servie avec une **CSP stricte** (`script-src 'self'`, aucun script en ligne), `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, `Permissions-Policy`.
+- **Aucune ressource tierce** : polices et scripts sont servis par l'installation (aucune adresse IP d'utilisateur transmise à un service extérieur).
+- L'adresse IP enregistrée au journal est celle du client (transmise par le proxy), jamais un en-tête accepté sans proxy de confiance.
 
 ## Intelligence artificielle
 

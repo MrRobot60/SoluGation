@@ -24,6 +24,20 @@ curl -s http://localhost:8000/api/sante/  # répond {"statut": "ok", …} si l'A
 | `ModuleNotFoundError` après une mise à jour | Nouvelle dépendance Python | `docker compose build backend && docker compose up -d` |
 | Erreur 500 passagère pendant le développement | Rechargement automatique du serveur Django | Réessayer quelques secondes plus tard |
 
+## Production
+
+| Symptôme | Cause | Solution |
+|---|---|---|
+| Le serveur redémarre en boucle, `solugation.E00x` dans `sg logs backend` | Valeur d'exemple ou réglage manquant | Corriger `.env.production` (voir [production](15-production.md#si-le-serveur-ne-démarre-pas)), puis `sg up -d` |
+| `SOLUGATION_DOMAINE manquant` au lancement | Compose lancé sans le fichier de configuration | Ajouter `--env-file .env.production` (ou utiliser l'alias `sg`) |
+| Pas de certificat, erreur TLS dans `sg logs proxy` | DNS pas encore propagé, port 80 fermé, ou pas d'accès Internet | Vérifier `dig +short <domaine>` et le pare-feu ; sur réseau interne, fournir votre certificat |
+| Erreur 413 à l'envoi d'un document | Limite du proxy | Augmenter `SOLUGATION_ENVOI_MAX_MO` (et `UPLOAD_MAX_MO`), puis `sg up -d` |
+| Erreur 502 | Serveur web arrêté ou en démarrage | `sg ps`, `sg logs backend` |
+| Analyse IA « en attente » qui ne démarre pas | Service `taches` arrêté | `sg ps` ; `sg logs taches` ; `sg up -d taches` |
+| Analyse marquée « interrompue » | Service `taches` arrêté pendant l'analyse | Relancer l'analyse |
+| CSRF refusé à la connexion | Adresse d'accès différente du domaine (port, autre nom) | Accéder par `https://<SOLUGATION_DOMAINE>`, ou compléter `DJANGO_CSRF_TRUSTED_ORIGINS` |
+| `restaurer.sh` : « Empreintes invalides » | Sauvegarde modifiée ou incomplète | Ne pas forcer : prendre la sauvegarde précédente |
+
 ## Comptes et connexion
 
 | Symptôme | Solution |

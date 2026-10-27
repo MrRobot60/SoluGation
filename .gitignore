@@ -2,11 +2,15 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Textes de normes sous licence (ISO, etc.) : JAMAIS commités
 data/private/
 # Sources téléchargées par les scripts d'import (reproductibles, non versionnées)
 data/sources/
+
+# Sauvegardes de production (contiennent toutes les données)
+sauvegardes/
 
 # Python
 __pycache__/

@@ -3,7 +3,8 @@
 Toutes les commandes se lancent dans le conteneur du serveur :
 
 ```bash
-docker compose exec backend python manage.py <commande> [options]
+docker compose exec backend python manage.py <commande> [options]                # développement
+docker compose -f docker-compose.prod.yml --env-file .env.production exec backend python manage.py <commande>   # production (alias « sg », voir 15-production)
 ```
 
 ## Installation et comptes
@@ -39,10 +40,20 @@ Voir [les référentiels](08-referentiels.md) pour les fichiers attendus.
 | Commande | Effet |
 |---|---|
 | `initialiser_stockage [--attente 30]` | Crée le bucket S3 et active le versioning (lancé à chaque démarrage, sans effet s'il existe). |
+| `sauvegarder_stockage DOSSIER` | Copie tous les fichiers du bucket dans `DOSSIER` (vide), avec `inventaire.json` (SHA-256 de chaque fichier). Utilisée par `scripts/sauvegarder.sh`. |
+| `restaurer_stockage DOSSIER` | Remet les fichiers d'une sauvegarde dans le bucket, après vérification de **toutes** les empreintes. |
+
+## Production
+
+| Commande | Effet |
+|---|---|
+| `check --deploy --tag security` | Contrôles de configuration (valeurs d'exemple, domaine, SMTP, chiffrement) ; lancée à chaque démarrage du serveur de production, qui refuse de démarrer en cas d'erreur. |
+| `executer_taches [--intervalle 3] [--une-fois]` | Service de tâches (conteneur `taches`) : exécute les analyses IA en attente et les tâches planifiées ci-dessous. |
+| `scripts/sauvegarder.sh` / `scripts/restaurer.sh DOSSIER` | Scripts de l'hôte (pas de `manage.py`) : voir [sauvegardes](15-production.md#6-sauvegardes). |
 
 ## Tâches à planifier
 
-En développement, rien n'est planifié : lancez-les à la main pour tester. En production, planifiez-les (cron, minuteur systemd, ordonnanceur de votre plateforme).
+En **production**, le service `taches` les exécute lui-même (au démarrage, puis à la fréquence indiquée) : rien à planifier. En **développement**, lancez-les à la main pour tester.
 
 | Commande | Fréquence conseillée | Effet |
 |---|---|---|
@@ -50,7 +61,7 @@ En développement, rien n'est planifié : lancez-les à la main pour tester. En 
 | `rappeler_revues` | chaque jour | Rappel 30 jours avant la revue périodique, puis en cas de retard, une fois par échéance. |
 | `expirer_derogations` | chaque jour | Passe « expirées » les dérogations dont la date est dépassée (c'est aussi vérifié à chaque consultation). |
 
-Exemple de crontab sur l'hôte :
+Sans le service `taches` (installation hors Docker), planifiez-les avec cron :
 
 ```cron
 0 * * * *  cd /opt/solugation && docker compose exec -T backend python manage.py rappeler_reunions

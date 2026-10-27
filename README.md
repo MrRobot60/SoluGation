@@ -20,6 +20,17 @@ Puis ouvrir <http://localhost:5173> et se connecter. Les mails envoyés sont vis
 
 Le détail (prérequis, choix des valeurs, référentiels à déposer à la main) est dans [l'installation](docs/02-installation.md).
 
+## En production
+
+Serveur Linux avec Docker, nom de domaine, ports 80 et 443 : HTTPS automatique, aucun service interne exposé, tâches planifiées et sauvegardes fournies.
+
+```bash
+cp .env.production.example .env.production   # domaine, secrets, SMTP
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait
+```
+
+Pas à pas : [Déployer en production](docs/15-production.md).
+
 ## Documentation
 
 | | |
@@ -37,6 +48,7 @@ Le détail (prérequis, choix des valeurs, référentiels à déposer à la main
 | [Commandes et tâches planifiées](docs/11-commandes.md) | Ligne de commande, cron, API |
 | [Dépannage](docs/12-depannage.md) | Problèmes fréquents et solutions |
 | [Développement](docs/13-developpement.md) | Architecture, ajouter une fonctionnalité, tests |
+| [Déployer en production](docs/15-production.md) | Serveur HTTPS, configuration, sauvegardes, mises à jour |
 
 ## Licence
 

@@ -9,17 +9,8 @@
     <link rel="apple-touch-icon" href="/marque/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="SoluGation" />
     <title>SoluGation</title>
-    <script>
-      // Thème posé avant le premier rendu (pas de flash) : choix enregistré, sinon préférence système.
-      (function () {
-        var choix = null;
-        try { choix = localStorage.getItem("sg-theme"); } catch (e) {}
-        var sombre = choix ? choix === "sombre" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-        document.documentElement.dataset.theme = sombre ? "sombre" : "clair";
-      })();
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <!-- Thème posé avant le premier rendu (pas de flash) ; fichier externe pour une CSP sans script en ligne. -->
+    <script src="/theme-initial.js"></script>
   </head>
   <body>
     <div id="racine"></div>

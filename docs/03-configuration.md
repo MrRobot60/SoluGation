@@ -60,7 +60,25 @@ Sans configuration, **aucune IA** : les fonctions IA sont masquées et tout fonc
 | `IA_CLE_CHIFFREMENT` | clé Fernet | Chiffre la clé d'API saisie à l'écran. Vide : dérivée de `DJANGO_SECRET_KEY`. Générer : `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `IA_AUTORISER_RESEAU_LOCAL` | `False` | `True` pour une IA sur le réseau local (Ollama, vLLM) : lève la protection SSRF qui refuse les adresses internes et le HTTP. |
 | `MISTRAL_API_KEY`, `MISTRAL_MODELE`, `MISTRAL_URL`, `MISTRAL_ZDR_CONFIRME` | — | Raccourci `IA_FOURNISSEUR=mistral`. |
+| `IA_EXECUTION` | `fil` (dev), `taches` (production, fixé par `docker-compose.prod.yml`) | Où s'exécutent les analyses : fil d'arrière-plan du serveur web, ou service `taches` dédié. |
 | `IA_SYNCHRONE` | `False` | Exécute les analyses dans la requête (tests uniquement). |
+
+## Production
+
+Fichier `.env.production` (modèle : `.env.production.example`), lu par `docker-compose.prod.yml`. Voir [Déployer en production](15-production.md).
+
+| Variable | Exemple | Rôle |
+|---|---|---|
+| `SOLUGATION_DOMAINE` | `solugation.exemple.fr` | Nom de domaine public. Certificat HTTPS automatique ; `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` et `FRONTEND_URL` s'en déduisent s'ils sont vides. |
+| `POSTGRES_PASSWORD` | — | Saisi une seule fois : `DATABASE_URL` est construite par Compose. |
+| `COMPOSE_PROFILES` | `stockage-local` | Lance le stockage S3 intégré. Vide pour un S3 externe. |
+| `SOLUGATION_ENVOI_MAX_MO` | `60` | Taille maximale d'une requête acceptée par le proxy (un peu plus que `UPLOAD_MAX_MO`). |
+| `GUNICORN_WORKERS` | `3` | Processus du serveur web. |
+| `SOLUGATION_PORT_HTTP`, `SOLUGATION_PORT_HTTPS` | `80`, `443` | Ports publiés (à changer seulement pour un essai local). |
+| `SOLUGATION_PROXY_DE_CONFIANCE` | `True` (fixé par Compose) | L'adresse du client est lue dans `X-Forwarded-For`, posé par Caddy. **Jamais** sans proxy devant : l'en-tête serait falsifiable. |
+| `SAUVEGARDE_JOURS` | `14` | Variable du shell pour `scripts/sauvegarder.sh` : durée de conservation des sauvegardes locales. |
+
+Fixés par `docker-compose.prod.yml` : `DJANGO_DEBUG=False`, `IA_EXECUTION=taches`, `SOLUGATION_PROXY_DE_CONFIANCE=True`, `DATABASE_URL`, `SOLUGATION_DATA_DIR=/data`.
 
 ## Démonstration (développement)
 

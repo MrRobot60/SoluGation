@@ -3,11 +3,11 @@ Fonctionne avec tout stockage S3-compatible (SeaweedFS en dev, Scaleway en prod)
 
 import time
 
-import boto3
-from botocore.config import Config
 from botocore.exceptions import ClientError, EndpointConnectionError
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+
+from apps.core.stockage import client_s3
 
 
 class Command(BaseCommand):
@@ -17,14 +17,7 @@ class Command(BaseCommand):
         parser.add_argument("--attente", type=int, default=30, help="Secondes d'attente max du stockage au démarrage.")
 
     def handle(self, attente, **options):
-        client = boto3.client(
-            "s3",
-            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_S3_REGION_NAME,
-            config=Config(s3={"addressing_style": "path"}, retries={"max_attempts": 2}),
-        )
+        client = client_s3()
         bucket = settings.AWS_STORAGE_BUCKET_NAME
         limite = time.monotonic() + attente
         while True:

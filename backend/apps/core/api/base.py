@@ -3,6 +3,8 @@ journal d'audit automatique sur chaque écriture."""
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import ProtectedError
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -25,6 +27,7 @@ def gestionnaire_exceptions(exc, context):
     return exception_handler(exc, context)
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class NomField(serializers.Field):
     """Nom lisible d'un objet lié (personne…), chaîne vide s'il est absent. À préférer à
     `source="x.__str__"`, qui renvoie la représentation de `None.__str__` quand le lien est vide."""

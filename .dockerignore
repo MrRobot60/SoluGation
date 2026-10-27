@@ -1,0 +1,10 @@
+# Contexte de l'image d'interface (racine du dépôt) : seuls frontend/, docs/ et deploiement/ sont utiles.
+.git
+.env
+.env.*
+data/
+sauvegardes/
+backend/
+marque/
+**/node_modules
+frontend/dist

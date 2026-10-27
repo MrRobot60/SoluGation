@@ -1,14 +1,11 @@
 # Avant publication : feuille de route
 
-État au 27/10/2026. Ce qui manque avant de rendre SoluGation disponible publiquement, par priorité.
+État au 27/10/2026 (mis à jour après la mise en place de la production). Ce qui manque avant de rendre SoluGation disponible publiquement, par priorité.
 
 ## Bloquant
 
 | Sujet | Pourquoi | À faire |
 |---|---|---|
-| Déploiement de production | Le `docker-compose.yml` actuel sert au développement (serveur Django de dev, Vite en mode dev) | Fichier Compose de production : gunicorn, interface construite (`npm run build`) servie par le proxy, proxy TLS (Caddy ou Traefik), limite de taille d'envoi au proxy ; l'image de l'interface doit embarquer `docs/` (rubrique Aide) |
-| Sauvegardes | Aucune sauvegarde automatisée | Sauvegarde planifiée de PostgreSQL et du stockage, procédure de restauration testée |
-| Tâches de fond | Mails et IA tournent dans des threads du serveur : perdus en cas de redémarrage | File de tâches (Celery ou RQ + Redis), limites de débit partagées entre processus |
 | Comptes | Pas d'écran de gestion des utilisateurs, ni de réinitialisation de mot de passe par mail | Écran d'administration des comptes, mot de passe oublié, invitation par mail |
 | Licence | Aucune licence = personne n'a le droit d'utiliser le code | Choisir (recommandé : AGPL-3.0 + licence commerciale + CLA) et ajouter `LICENSE` |
 | Fichiers du dépôt | Attendus de tout projet open source | `SECURITY.md` (contact de signalement), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, modèles de tickets |
@@ -19,6 +16,9 @@
 
 | Sujet | À faire |
 |---|---|
+| Limitation des connexions partagée | Le compteur (10 tentatives par minute) est propre à chaque processus gunicorn : cache partagé (base ou Redis) |
+| Supervision | Alerte externe si le site ne répond plus ; exporter les journaux |
+| Poids de l'interface | Découper le paquet JavaScript principal (environ 620 ko) |
 | Double authentification | TOTP pour tous, obligatoire pour les administrateurs |
 | Durée de session | Réduire (8 h) et déconnexion après inactivité |
 | Base de données | Rôle PostgreSQL applicatif qui n'est pas propriétaire des tables (le trigger du journal ne peut alors plus être désactivé par l'application) |
@@ -42,6 +42,15 @@
 | Réunions | Pas de réponse de participation (RSVP), pas d'annulation envoyée à un participant retiré |
 | Reconnaissance de caractères | PDF scannés non analysés par l'IA |
 | Mascotte | À fournir |
+
+## Fait
+
+| Sujet | Où |
+|---|---|
+| Déploiement de production : gunicorn, interface compilée, HTTPS automatique (Caddy), services internes non exposés, démarrage refusé sur configuration dangereuse | [Production](15-production.md) |
+| Sauvegardes et restauration (base + fichiers, empreintes, rotation), testées | [Production, sauvegardes](15-production.md#6-sauvegardes) |
+| Service de tâches : analyses IA hors du serveur web, rappels planifiés sans cron | `executer_taches` |
+| Aucune ressource tierce (police embarquée), CSP stricte | [Sécurité](10-securite.md) |
 
 ## Juridique
 

@@ -163,6 +163,8 @@ def demarrer(analyse_id):
     if settings.IA_SYNCHRONE:
         executer(analyse_id)
         return
+    if settings.IA_EXECUTION == "taches":
+        return  # le service de tâches la prendra (executer_taches)
 
     def tache():
         close_old_connections()
@@ -172,6 +174,11 @@ def demarrer(analyse_id):
             connection.close()
 
     threading.Thread(target=tache, name=f"analyse-{analyse_id}", daemon=True).start()
+
+
+def analyses_en_attente():
+    """File des analyses à exécuter (service de tâches), les plus anciennes d'abord."""
+    return AnalyseIA.objects.filter(etat=AnalyseIA.Etat.EN_ATTENTE).order_by("cree_le").values_list("pk", flat=True)
 
 
 def _analyser_document(fournisseur, projet, document, bilan):
@@ -260,11 +267,11 @@ def _traitement(type_analyse):
 
 
 def executer(analyse_id):
-    analyse = AnalyseIA.objects.select_related("projet__organisation", "demandee_par").get(pk=analyse_id)
-    if analyse.etat != AnalyseIA.Etat.EN_ATTENTE:
+    # Prise en charge atomique : une analyse n'est jamais exécutée deux fois (plusieurs exécutants possibles).
+    if not AnalyseIA.objects.filter(pk=analyse_id, etat=AnalyseIA.Etat.EN_ATTENTE).update(
+            etat=AnalyseIA.Etat.EN_COURS, debut_le=timezone.now()):
         return
-    analyse.etat, analyse.debut_le = AnalyseIA.Etat.EN_COURS, timezone.now()
-    analyse.save(update_fields=["etat", "debut_le"])
+    analyse = AnalyseIA.objects.select_related("projet__organisation", "demandee_par").get(pk=analyse_id)
     bilan = {"appels": 0, "jetons_entree": 0, "jetons_sortie": 0, "ecartes": 0}
     try:
         if not analyse.projet.organisation.ia_activee:

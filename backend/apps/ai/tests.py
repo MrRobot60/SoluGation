@@ -6,7 +6,11 @@ import json
 import zipfile
 from unittest import mock
 
+from datetime import timedelta
+
+from django.core.management import call_command
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from apps.audit.models import JournalAudit
 from apps.core.models import StatutValidation
@@ -155,6 +159,28 @@ class AnalyseTests(BaseApi):
         analyse = AnalyseIA.objects.get(pk=reponse.data["id"])
         self.assertEqual(analyse.etat, AnalyseIA.Etat.ECHEC)
         self.assertIn("Aucun document analysable", analyse.erreur)
+
+    @override_settings(IA_SYNCHRONE=False, IA_EXECUTION="taches")
+    def test_service_de_taches(self):
+        """Production : l'analyse attend le service de tâches, exécutée une seule fois ; une analyse interrompue est libérée."""
+        reponse = self.lancer(self.api_a, Factice())
+        analyse = AnalyseIA.objects.get(pk=reponse.data["id"])
+        self.assertEqual(analyse.etat, AnalyseIA.Etat.EN_ATTENTE)
+        sortie = io.StringIO()
+        with mock.patch("apps.ai.analyse.obtenir_fournisseur", return_value=Factice()):
+            call_command("executer_taches", "--une-fois", stdout=sortie)
+        analyse.refresh_from_db()
+        self.assertEqual(analyse.etat, AnalyseIA.Etat.TERMINEE, analyse.erreur)
+        fin = analyse.fin_le
+        call_command("executer_taches", "--une-fois", stdout=sortie)
+        analyse.refresh_from_db()
+        self.assertEqual(analyse.fin_le, fin)
+
+        AnalyseIA.objects.filter(pk=analyse.pk).update(etat=AnalyseIA.Etat.EN_COURS, debut_le=timezone.now() - timedelta(hours=1))
+        call_command("executer_taches", "--une-fois", stdout=sortie)
+        analyse.refresh_from_db()
+        self.assertEqual(analyse.etat, AnalyseIA.Etat.ECHEC)
+        self.assertIn("interrompue", analyse.erreur)
 
     def test_fournisseur_factice_de_bout_en_bout(self):
         reponse = self.lancer(self.api_a, Factice())
