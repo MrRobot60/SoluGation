@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from apps.audit.models import JournalAudit
 from apps.comptes.models import Role, Utilisateur
 from apps.core.api.acces import peut_decider_projet, peut_ecrire_projet, projets_accessibles
-from apps.core.api.base import JournaliseMixin, ProjetScopedSerializer, ProjetScopedViewSet
+from apps.core.api.base import JournaliseMixin, NomField, ProjetScopedSerializer, ProjetScopedViewSet
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import EcritureSelonRole, MembreOrganisation
 from apps.referentiels.api import referentiels_accessibles
@@ -241,12 +241,15 @@ class ProjetReferentielViewSet(ProjetScopedViewSet):
 
 class StatutMesureSerializer(ProjetScopedSerializer):
     mesure = ChampFiltre(mesures_accessibles)
-    evalue_par_nom = serializers.CharField(source="evalue_par.__str__", read_only=True, default="")
+    evalue_par_nom = NomField(source="evalue_par")
+    mesure_identifiant = serializers.CharField(source="mesure.identifiant", read_only=True)
+    mesure_intitule = serializers.CharField(source="mesure.intitule", read_only=True)
+    referentiel_code = serializers.CharField(source="mesure.referentiel.code", read_only=True)
 
     class Meta:
         model = StatutMesure
-        fields = ["id", "projet", "mesure", "statut", "justification", "resultat_analyse", "evalue_par",
-                  "evalue_par_nom", "evalue_le"]
+        fields = ["id", "projet", "mesure", "mesure_identifiant", "mesure_intitule", "referentiel_code", "statut", "justification",
+                  "resultat_analyse", "evalue_par", "evalue_par_nom", "evalue_le"]
         read_only_fields = ["resultat_analyse", "evalue_par", "evalue_le"]
 
     def validate(self, attrs):
@@ -259,7 +262,7 @@ class StatutMesureSerializer(ProjetScopedSerializer):
 
 
 class StatutMesureViewSet(ProjetScopedViewSet):
-    queryset = StatutMesure.objects.select_related("mesure", "evalue_par")
+    queryset = StatutMesure.objects.select_related("mesure__referentiel", "evalue_par")
     serializer_class = StatutMesureSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
 

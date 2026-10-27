@@ -18,6 +18,7 @@ from apps.ai.models import AnalyseIA
 from apps.ai.provider import IAIndisponible
 from apps.audit.models import JournalAudit
 from apps.core.api.acces import peut_decider_projet, peut_ecrire_projet, projets_accessibles
+from apps.core.api.base import NomField
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import MembreOrganisation
 from apps.core.models import StatutValidation
@@ -35,8 +36,8 @@ def redaction_en_cours(rapport):
 
 
 class RapportSerializer(serializers.ModelSerializer):
-    genere_par_nom = serializers.CharField(source="genere_par.__str__", read_only=True)
-    valide_par_nom = serializers.CharField(source="valide_par.__str__", read_only=True, default="")
+    genere_par_nom = NomField(source="genere_par")
+    valide_par_nom = NomField(source="valide_par")
     redaction = serializers.SerializerMethodField()
     chiffres = serializers.SerializerMethodField()
 

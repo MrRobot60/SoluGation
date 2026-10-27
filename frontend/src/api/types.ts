@@ -202,6 +202,9 @@ export interface EvaluationMesure {
   id: string;
   projet: string;
   mesure: string;
+  mesure_identifiant: string;
+  mesure_intitule: string;
+  referentiel_code: string;
   statut: StatutConformite;
   justification: string;
   resultat_analyse: string | null;

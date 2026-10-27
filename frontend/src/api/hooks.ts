@@ -345,8 +345,16 @@ export function useValiderRapport(projetId: string) {
 /* ---- EBIOS RM ---------------------------------------------------------------------------- */
 
 function invaliderEbios(client: ReturnType<typeof useQueryClient>, projetId: string) {
-  client.invalidateQueries({ queryKey: ["ebios", projetId] });
-  client.invalidateQueries({ queryKey: ["taches", projetId] });
+  for (const cle of ["ebios", "objets", "taches", "tableau-de-bord"]) client.invalidateQueries({ queryKey: [cle, projetId] });
+}
+
+/** Liste d'objets d'un projet par chemin d'API (ex. « risques-residuels »). */
+export function useObjets(projetId: string, chemin: string) {
+  return useQuery({
+    queryKey: ["objets", projetId, chemin],
+    queryFn: () => toutesLesPages<ObjetEbios>(`/api/${chemin}/?projet=${projetId}`),
+    enabled: Boolean(projetId),
+  });
 }
 
 export function useObjetsEbios(projetId: string, ressource: string) {
@@ -378,21 +386,32 @@ export function useSyntheseEbios(projetId: string) {
   });
 }
 
-export function useEnregistrerEbios(projetId: string, ressource: string) {
+/** Création ou modification d'un objet de projet ; `chemin` = chemin d'API (ex. « ebios/valeurs-metier »). */
+export function useEnregistrerObjet(projetId: string, chemin: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...champs }: { id?: string; [champ: string]: unknown }) =>
       id
-        ? api<ObjetEbios>(`/api/ebios/${ressource}/${id}/`, { methode: "PATCH", corps: champs })
-        : api<ObjetEbios>(`/api/ebios/${ressource}/`, { methode: "POST", corps: { projet: projetId, ...champs } }),
+        ? api<ObjetEbios>(`/api/${chemin}/${id}/`, { methode: "PATCH", corps: champs })
+        : api<ObjetEbios>(`/api/${chemin}/`, { methode: "POST", corps: { projet: projetId, ...champs } }),
     onSuccess: () => invaliderEbios(client, projetId),
   });
 }
 
-export function useSupprimerEbios(projetId: string, ressource: string) {
+export function useSupprimerObjet(projetId: string, chemin: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api<void>(`/api/ebios/${ressource}/${id}/`, { methode: "DELETE" }),
+    mutationFn: (id: string) => api<void>(`/api/${chemin}/${id}/`, { methode: "DELETE" }),
+    onSuccess: () => invaliderEbios(client, projetId),
+  });
+}
+
+/** Décision sur un objet (risque, dérogation) : POST `<chemin>/<id>/decider/`. */
+export function useDecider(projetId: string, chemin: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...corps }: { id: string; decision: string; [champ: string]: unknown }) =>
+      api<ObjetEbios>(`/api/${chemin}/${id}/decider/`, { methode: "POST", corps }),
     onSuccess: () => invaliderEbios(client, projetId),
   });
 }

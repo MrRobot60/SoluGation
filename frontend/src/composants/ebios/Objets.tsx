@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
 
-import { useEnregistrerEbios, useSupprimerEbios } from "../../api/hooks";
+import { useEnregistrerObjet, useSupprimerObjet } from "../../api/hooks";
 import type { ObjetEbios } from "../../api/types";
 import { IconePlus } from "../Icones";
 
@@ -13,6 +13,12 @@ export type Champ = { cle: string; libelle: string; aide?: string; requis?: bool
 
 export interface Config {
   ressource: string;
+  /** Chemin d'API ; par défaut `ebios/<ressource>`. */
+  api?: string;
+  /** Objet non modifiable (ex. dérogation déjà décidée). */
+  verrou?: (o: ObjetEbios) => boolean;
+  /** Actions affichées sous l'objet (ex. décisions). */
+  actions?: (o: ObjetEbios) => ReactNode;
   titre: string;
   aide?: string;
   champs: Champ[];
@@ -96,8 +102,9 @@ function ChampSaisi({ c, valeur, changer }: { c: Champ; valeur: unknown; changer
 }
 
 function Formulaire({ config, objet, projetId, fermer }: { config: Config; objet?: ObjetEbios; projetId: string; fermer: () => void }) {
-  const enregistrer = useEnregistrerEbios(projetId, config.ressource);
-  const supprimer = useSupprimerEbios(projetId, config.ressource);
+  const chemin = config.api ?? `ebios/${config.ressource}`;
+  const enregistrer = useEnregistrerObjet(projetId, chemin);
+  const supprimer = useSupprimerObjet(projetId, chemin);
   const [b, setB] = useState<Record<string, unknown>>(() => Object.fromEntries(config.champs.map((c) => [c.cle, objet?.[c.cle] ?? (c.type === "liens" ? [] : c.type === "booleen" ? false : c.type === "echelle" ? null : "")])));
   const [confirmer, setConfirmer] = useState(false);
   const manquant = config.champs.some((c) => c.requis && (b[c.cle] === null || b[c.cle] === "" || b[c.cle] === undefined));
@@ -147,11 +154,14 @@ export function ListeObjets({ config, objets, projetId, lectureSeule, enTete }: 
             {edition === o.id ? (
               <Formulaire config={config} objet={o} projetId={projetId} fermer={() => setEdition(null)} />
             ) : (
-              <button type="button" disabled={lectureSeule} onClick={() => setEdition(o.id)}
-                className="flex w-full flex-col gap-1 rounded-2xl bg-groupe px-4 py-3 text-left shadow-groupe enabled:hover:bg-remplissage disabled:cursor-default">
-                <span className="text-[15px] leading-snug font-medium">{config.resume(o)}</span>
-                {config.detail && <span className="text-[13px] leading-snug text-texte-2">{config.detail(o)}</span>}
-              </button>
+              <div className="flex flex-col overflow-hidden rounded-2xl bg-groupe shadow-groupe">
+                <button type="button" disabled={lectureSeule || config.verrou?.(o)} onClick={() => setEdition(o.id)}
+                  className="flex w-full flex-col gap-1 px-4 py-3 text-left enabled:hover:bg-remplissage disabled:cursor-default">
+                  <span className="text-[15px] leading-snug font-medium">{config.resume(o)}</span>
+                  {config.detail && <span className="text-[13px] leading-snug text-texte-2">{config.detail(o)}</span>}
+                </button>
+                {config.actions?.(o)}
+              </div>
             )}
           </li>
         ))}

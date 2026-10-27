@@ -25,6 +25,21 @@ def gestionnaire_exceptions(exc, context):
     return exception_handler(exc, context)
 
 
+class NomField(serializers.Field):
+    """Nom lisible d'un objet lié (personne…), chaîne vide s'il est absent. À préférer à
+    `source="x.__str__"`, qui renvoie la représentation de `None.__str__` quand le lien est vide."""
+
+    def __init__(self, **kwargs):
+        super().__init__(read_only=True, **kwargs)
+
+    def get_attribute(self, instance):
+        valeur = super().get_attribute(instance)
+        return "" if valeur is None else valeur
+
+    def to_representation(self, valeur):
+        return str(valeur)
+
+
 class ProjetAccessibleField(serializers.PrimaryKeyRelatedField):
     """FK vers un projet : seuls les projets accessibles à l'utilisateur sont acceptés (sinon « objet inexistant »)."""
 

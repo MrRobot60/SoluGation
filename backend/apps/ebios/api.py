@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from apps.audit.models import JournalAudit
 from apps.core.api.acces import peut_ecrire_projet, projets_accessibles
-from apps.core.api.base import JournaliseMixin, ProjetScopedSerializer, ProjetScopedViewSet
+from apps.core.api.base import JournaliseMixin, NomField, ProjetScopedSerializer, ProjetScopedViewSet
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import EcritureSelonRole, MembreOrganisation
 from apps.suivi.api import lien_tache
@@ -230,7 +230,7 @@ class EbiosProjetViewSet(viewsets.ViewSet):
 class SuggestionSerializer(serializers.ModelSerializer):
     fournisseur = serializers.CharField(source="analyse.fournisseur", read_only=True)
     type_libelle = serializers.CharField(source="get_type_objet_display", read_only=True)
-    valide_par_nom = serializers.CharField(source="valide_par.__str__", read_only=True, default="")
+    valide_par_nom = NomField(source="valide_par")
 
     class Meta:
         model = m.SuggestionEBIOS

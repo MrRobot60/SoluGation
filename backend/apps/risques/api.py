@@ -14,7 +14,7 @@ from rest_framework.response import Response
 
 from apps.audit.models import JournalAudit
 from apps.core.api.acces import peut_decider_projet
-from apps.core.api.base import ProjetScopedSerializer, ProjetScopedViewSet
+from apps.core.api.base import NomField, ProjetScopedSerializer, ProjetScopedViewSet
 from apps.core.api.journal import journaliser
 from apps.projets.api import ChampFiltre, mesures_accessibles, nom_acteur
 from apps.suivi.notifications import acteurs_concernes, notifier
@@ -55,7 +55,7 @@ class RisqueSerializer(ProjetScopedSerializer):
     mesures = ChampFiltre(mesures_accessibles, many=True, required=False)
     niveau = serializers.IntegerField(read_only=True)
     proprietaire_nom = serializers.SerializerMethodField()
-    accepte_par_nom = serializers.CharField(source="accepte_par.__str__", read_only=True, default="")
+    accepte_par_nom = NomField(source="accepte_par")
     revue_depassee = serializers.SerializerMethodField()
     nb_derogations = serializers.IntegerField(source="derogations.count", read_only=True)
 
@@ -87,8 +87,8 @@ class RisqueSerializer(ProjetScopedSerializer):
 class DerogationSerializer(ProjetScopedSerializer):
     mesure = ChampFiltre(mesures_accessibles, required=False, allow_null=True)
     cible = serializers.SerializerMethodField()
-    demandee_par_nom = serializers.CharField(source="demandee_par.__str__", read_only=True)
-    decidee_par_nom = serializers.CharField(source="decidee_par.__str__", read_only=True, default="")
+    demandee_par_nom = NomField(source="demandee_par")
+    decidee_par_nom = NomField(source="decidee_par")
 
     class Meta:
         model = Derogation

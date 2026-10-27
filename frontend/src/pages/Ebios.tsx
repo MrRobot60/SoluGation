@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { api } from "../api/client";
-import { useActeurs, useEnregistrerEbios, usePreremplirSocle, useSyntheseEbios, useTableauDeBord, useToutEbios } from "../api/hooks";
+import { useActeurs, useEnregistrerObjet, usePreremplirSocle, useSyntheseEbios, useTableauDeBord, useToutEbios } from "../api/hooks";
 import type { ObjetEbios } from "../api/types";
 import { Disposition } from "../composants/Disposition";
 import { ECHELLE, ListeObjets, type Config, type Option } from "../composants/ebios/Objets";
@@ -33,7 +33,7 @@ const opts = (liste: ObjetEbios[], libelle: (o: ObjetEbios) => string): Option[]
 const cote = (libelle: string, v: unknown) => (v ? `${libelle} ${v} (${ECHELLE[v as number].toLowerCase()})` : "");
 
 function MetaAtelier({ atelier, projetId, lectureSeule, acteurs }: { atelier?: ObjetEbios; projetId: string; lectureSeule: boolean; acteurs: Option[] }) {
-  const enregistrer = useEnregistrerEbios(projetId, "ateliers");
+  const enregistrer = useEnregistrerObjet(projetId, "ebios/ateliers");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState("");
   useEffect(() => { setNotes(String(atelier?.notes ?? "")); setDate(String(atelier?.date_atelier ?? "")); }, [atelier?.id, atelier?.notes, atelier?.date_atelier]);

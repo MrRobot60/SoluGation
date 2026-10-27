@@ -7,7 +7,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 
 from apps.audit.models import JournalAudit
 from apps.core.api.acces import projets_accessibles
-from apps.core.api.base import ProjetScopedSerializer
+from apps.core.api.base import NomField, ProjetScopedSerializer
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import EcritureSelonRole, MembreOrganisation
 from apps.projets.models import DocumentAttendu, Projet
@@ -19,7 +19,7 @@ from .validation import controler
 
 class DocumentDeposeSerializer(ProjetScopedSerializer):
     fichier = serializers.FileField(write_only=True)
-    depose_par_nom = serializers.CharField(source="depose_par.__str__", read_only=True)
+    depose_par_nom = NomField(source="depose_par")
 
     class Meta:
         model = DocumentDepose
@@ -95,7 +95,7 @@ class PreuveSerializer(ProjetScopedSerializer):
     fichier = serializers.FileField(write_only=True)
     serie = serializers.UUIDField(required=False)
     mesures = serializers.PrimaryKeyRelatedField(many=True, queryset=Mesure.objects.all())
-    depose_par_nom = serializers.CharField(source="depose_par.__str__", read_only=True)
+    depose_par_nom = NomField(source="depose_par")
 
     class Meta:
         model = Preuve

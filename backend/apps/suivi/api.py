@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.audit.models import JournalAudit
-from apps.core.api.base import ProjetScopedSerializer, ProjetScopedViewSet
+from apps.core.api.base import NomField, ProjetScopedSerializer, ProjetScopedViewSet
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import MembreOrganisation
 from apps.projets.api import nom_acteur
@@ -30,7 +30,7 @@ class TacheSerializer(ProjetScopedSerializer):
     referentiel_code = serializers.CharField(source="mesure.referentiel.code", read_only=True, default="")
     responsable_nom = serializers.SerializerMethodField()
     responsable_utilisateur = serializers.UUIDField(source="responsable.utilisateur_id", read_only=True, default=None)
-    cloturee_par_nom = serializers.CharField(source="cloturee_par.__str__", read_only=True, default="")
+    cloturee_par_nom = NomField(source="cloturee_par")
     nb_commentaires = serializers.IntegerField(read_only=True, default=0)
     en_retard = serializers.SerializerMethodField()
 
@@ -135,7 +135,7 @@ class TacheViewSet(ProjetScopedViewSet):
 
 
 class CommentaireSerializer(ProjetScopedSerializer):
-    auteur_nom = serializers.CharField(source="auteur.__str__", read_only=True)
+    auteur_nom = NomField(source="auteur")
 
     class Meta:
         model = Commentaire

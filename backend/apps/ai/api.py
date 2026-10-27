@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from apps.audit.models import JournalAudit
 from apps.core.api.acces import peut_decider_projet, peut_ecrire_projet, projets_accessibles
+from apps.core.api.base import NomField
 from apps.core.api.journal import journaliser
 from apps.core.api.permissions import MembreOrganisation
 from apps.core.models import StatutValidation
@@ -35,7 +36,7 @@ COUVERTURE_VERS_STATUT = {
 class ResultatSerializer(serializers.ModelSerializer):
     mesure_identifiant = serializers.CharField(source="mesure.identifiant", read_only=True)
     document_nom = serializers.CharField(source="document.nom_original", read_only=True, default="")
-    valide_par_nom = serializers.CharField(source="valide_par.__str__", read_only=True, default="")
+    valide_par_nom = NomField(source="valide_par")
 
     mesure_intitule = serializers.CharField(source="mesure.intitule", read_only=True)
     referentiel_code = serializers.CharField(source="mesure.referentiel.code", read_only=True)
@@ -110,7 +111,7 @@ class ResultatViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
 
 class AnalyseSerializer(serializers.ModelSerializer):
-    demandee_par_nom = serializers.CharField(source="demandee_par.__str__", read_only=True)
+    demandee_par_nom = NomField(source="demandee_par")
     nb_resultats = serializers.IntegerField(read_only=True, default=0)
     nb_a_valider = serializers.IntegerField(read_only=True, default=0)
     documents_analyses = serializers.SerializerMethodField()
@@ -204,7 +205,7 @@ class AnalyseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Cr
 class RecommandationSerializer(serializers.ModelSerializer):
     mesure_identifiant = serializers.CharField(source="mesure.identifiant", read_only=True, default="")
     fournisseur = serializers.CharField(source="analyse.fournisseur", read_only=True)
-    valide_par_nom = serializers.CharField(source="valide_par.__str__", read_only=True, default="")
+    valide_par_nom = NomField(source="valide_par")
 
     class Meta:
         model = RecommandationIA

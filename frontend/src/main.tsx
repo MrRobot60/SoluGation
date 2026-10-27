@@ -9,6 +9,7 @@ import { PageAccueil, PageAVenir, Protege } from "./pages/Autres";
 import { PageAdministration } from "./pages/Administration";
 import { PageEbios } from "./pages/Ebios";
 import { PageRapports } from "./pages/Rapports";
+import { PageRisques } from "./pages/Risques";
 import { PageConnexion } from "./pages/Connexion";
 import { PageDocuments } from "./pages/Documents";
 import { PageMesures } from "./pages/Mesures";
@@ -32,6 +33,7 @@ const routeur = createBrowserRouter([
       { path: "/projets/:projetId/plan-action", element: <PagePlanAction /> },
       { path: "/projets/:projetId/rapports", element: <PageRapports /> },
       { path: "/projets/:projetId/ebios", element: <PageEbios /> },
+      { path: "/projets/:projetId/risques", element: <PageRisques /> },
       { path: "/projets/:projetId/:rubrique", element: <PageAVenir /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],

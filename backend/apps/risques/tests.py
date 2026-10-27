@@ -59,6 +59,8 @@ class RegistreTests(BaseApi):
 
     def test_acceptation_reservee_datee_et_motivee(self):
         rid = self.risque()
+        # Lien vide : chaîne vide, et non la représentation de None.__str__ (régression).
+        self.assertEqual(self.api_a.get(f"/api/risques-residuels/{rid}/").data["accepte_par_nom"], "")
         url = f"/api/risques-residuels/{rid}/decider/"
         self.assertEqual(self.api_a.post(url, {"decision": "accepter", "motif": "ok", "date_revue": DANS_UN_AN}, format="json").status_code, 403)
         self.assertEqual(self.api_a.patch(f"/api/risques-residuels/{rid}/", {"statut": "accepte"}, format="json").status_code, 400)
