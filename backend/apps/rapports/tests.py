@@ -190,3 +190,42 @@ class OutilsTests(BaseApi):
     def test_chiffres_non_verifies(self):
         donnees = {"a": 12, "b": [1, 2, 3], "c": {"taux": 38}}
         self.assertEqual(chiffres_non_verifies("12 mesures, 38 %, 3 points, 2026, 99 écarts, 8 axes et M12", donnees), ["8", "99"])
+
+
+@override_settings(IA_SYNCHRONE=True)
+class ComparaisonTests(BaseApi):
+    def setUp(self):
+        super().setUp()
+        self.projet = self.creer_projet(self.api_a, "Portail")
+        StatutMesure.objects.create(projet=self.projet, mesure=self.mesure_rgs, statut="manquant", justification="Aucune analyse.")
+        self.org_a.ia_activee = False  # texte automatique : comparaison déterministe
+        self.org_a.save()
+
+    def generer(self, client=None, projet=None):
+        r = (client or self.api_a).post("/api/rapports/", {"projet": str((projet or self.projet).id)}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        return r.data["id"]
+
+    def test_ecarts_et_differentiel(self):
+        v1 = self.generer()
+        StatutMesure.objects.filter(projet=self.projet).update(statut="conforme")
+        v2 = self.generer()
+        r = self.api_a.get(f"/api/rapports/comparer/?a={v2}&b={v1}")  # ordre indifférent
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual((r.data["avant"]["version"], r.data["apres"]["version"]), (1, 2))
+        self.assertEqual(r.data["chiffres"]["conformite.conforme"]["ecart"], 1)
+        self.assertEqual(r.data["chiffres"]["manquements"]["ecart"], -1)
+        self.assertEqual([m["identifiant"] for m in r.data["manquements"]["resolus"]], ["§2.1"])
+        synthese = next(s for s in r.data["sections"] if s["cle"] == "synthese")
+        self.assertFalse(synthese["identique"])
+        self.assertEqual({x["type"] for x in synthese["segments"]} - {"egal"}, {"ajout", "retrait"})
+        self.assertEqual("".join(x["texte"] for x in synthese["segments"] if x["type"] != "retrait"),
+                         next(s for s in Rapport.objects.get(pk=v2).sections if s["cle"] == "synthese")["texte"])
+
+    def test_refus(self):
+        v1 = self.generer()
+        autre = self.generer(projet=self.creer_projet(self.api_a, "Autre"))
+        self.assertEqual(self.api_a.get(f"/api/rapports/comparer/?a={v1}&b={autre}").status_code, 400)  # deux projets
+        self.assertEqual(self.api_a.get(f"/api/rapports/comparer/?a={v1}&b={v1}").status_code, 400)
+        v2 = self.generer()
+        self.assertEqual(self.api_b.get(f"/api/rapports/comparer/?a={v1}&b={v2}").status_code, 404)  # autre organisation

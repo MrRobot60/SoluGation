@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 
 from apps.ai.analyse import preparer
@@ -24,6 +24,7 @@ from apps.core.api.permissions import MembreOrganisation
 from apps.core.models import StatutValidation
 from apps.projets.models import Projet
 
+from .comparaison import comparer
 from .donnees import evolution, instantane
 from .models import Rapport
 from .pdf import rendre
@@ -160,6 +161,20 @@ class RapportViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
             rapport.save(update_fields=["sections", "modifie_le"])
             journaliser(request, JournalAudit.Action.MODIFICATION, rapport, rapport.projet, {"sections": modifiees})
         return Response(RapportSerializer(rapport).data)
+
+    @action(detail=False, methods=["get"])
+    def comparer(self, request):
+        """`?a=<id>&b=<id>` : deux versions du même projet, dans l'ordre chronologique quel que soit l'ordre donné."""
+        ids = [request.query_params.get("a"), request.query_params.get("b")]
+        if not all(ids) or ids[0] == ids[1]:
+            raise serializers.ValidationError("Choisissez deux versions différentes.")
+        rapports = list(self.get_queryset().filter(pk__in=ids))
+        if len(rapports) != 2:
+            raise NotFound("Rapport inexistant.")
+        if rapports[0].projet_id != rapports[1].projet_id:
+            raise serializers.ValidationError("Les deux versions doivent appartenir au même projet.")
+        rapports.sort(key=lambda r: r.version)
+        return Response(comparer(*rapports))
 
     @action(detail=True, methods=["post"])
     def valider(self, request, pk=None):
