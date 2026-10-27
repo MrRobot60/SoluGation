@@ -195,9 +195,33 @@
   </table>
 </section>
 
+<section class="saut">
+  <h2>Annexe E — Risques résiduels et dérogations</h2>
+  <h3>Registre des risques résiduels</h3>
+  <table class="compacte">
+    <colgroup><col style="width:40%"><col style="width:9%"><col style="width:15%"><col style="width:22%"><col style="width:14%"></colgroup>
+    <thead><tr><th>Risque</th><th class="n">G × V</th><th>État</th><th>Acceptation</th><th>Revue</th></tr></thead>
+    <tbody>
+    {% for r in registre_risques %}<tr><td>{{ r.intitule }} <span class="note">· {{ r.origine }}</span></td><td class="n">{{ r.gravite }} × {{ r.vraisemblance }}</td>
+      <td>{{ r.statut }}</td><td>{% if r.accepte_par %}{{ r.accepte_par }}, le {{ r.accepte_fr }}{% else %}—{% endif %}</td><td>{{ r.revue_fr|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="5">Aucun risque résiduel enregistré.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <h3>Dérogations</h3>
+  <table class="compacte">
+    <colgroup><col style="width:24%"><col style="width:40%"><col style="width:12%"><col style="width:24%"></colgroup>
+    <thead><tr><th>Objet</th><th>Motif</th><th>État</th><th>Décision</th></tr></thead>
+    <tbody>
+    {% for x in registre_derogations %}<tr><td>{{ x.cible }}</td><td>{{ x.motif }}</td><td>{{ x.statut }}</td>
+      <td>{% if x.decidee_par %}{{ x.decidee_par }}{% if x.expiration_fr %}, jusqu'au {{ x.expiration_fr }}{% endif %}{% else %}—{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="4">Aucune dérogation.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+
 {% if d.ebios %}
 <section class="saut">
-  <h2>Annexe E — Analyse de risques EBIOS RM</h2>
+  <h2>Annexe {{ lettre_ebios }} — Analyse de risques EBIOS RM</h2>
   <p class="note">Avancement :
     {% for a in d.ebios.ateliers %}atelier {{ a.numero }} {% if a.statut == "termine" %}terminé{% elif a.statut == "en_cours" %}en cours{% else %}non commencé{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
     {% if d.ebios.alertes %} — {{ d.ebios.alertes }} point{{ d.ebios.alertes|pluralize }} de cohérence à compléter{% endif %}.</p>
@@ -231,7 +255,7 @@
 {% endif %}
 
 <section>
-  <h2>Annexe {% if d.ebios %}F{% else %}E{% endif %} — Acteurs du projet</h2>
+  <h2>Annexe {{ lettre_acteurs }} — Acteurs du projet</h2>
   <table>
     <thead><tr><th>Nom</th><th>Rôle</th><th>Organisme</th></tr></thead>
     <tbody>{% for a in d.acteurs %}<tr><td>{{ a.nom }}</td><td>{{ a.role }}</td><td>{{ a.organisme|default:"—" }}</td></tr>{% endfor %}</tbody>

@@ -2,7 +2,7 @@ import { Link } from "react-router";
 
 import type { TableauDeBord } from "../api/types";
 import { echeance, phraseActivite, quand } from "../lib/format";
-import { Chevron, IconeCercle, IconeDocument, IconeEtincelle } from "./Icones";
+import { Chevron, IconeBouclier, IconeCercle, IconeDocument, IconeEtincelle } from "./Icones";
 import { COUVERTURE } from "./statuts";
 
 function EnTeteBloc({ id, titre, lien, note }: { id: string; titre: string; lien?: { vers: string; texte: string }; note?: string }) {
@@ -15,7 +15,7 @@ function EnTeteBloc({ id, titre, lien, note }: { id: string; titre: string; lien
   );
 }
 
-const ICONES = { tache: IconeCercle, document: IconeDocument, validation_ia: IconeEtincelle };
+const ICONES = { tache: IconeCercle, document: IconeDocument, validation_ia: IconeEtincelle, decision: IconeBouclier };
 
 export function PourVous({ d, base }: { d: TableauDeBord; base: string }) {
   return (
@@ -29,7 +29,7 @@ export function PourVous({ d, base }: { d: TableauDeBord; base: string }) {
         <ul className="overflow-hidden rounded-groupe bg-groupe shadow-groupe">
           {d.pour_vous.map((e, i) => {
             const Icone = ICONES[e.type];
-            const vers = e.type === "document" ? `${base}/documents` : e.type === "tache" ? `${base}/plan-action` : `${base}/mesures`;
+            const vers = e.lien ? `${base}/${e.lien}` : e.type === "document" ? `${base}/documents` : e.type === "tache" ? `${base}/plan-action` : `${base}/mesures`;
             return (
               <li key={`${e.type}-${e.id ?? i}`}>
                 <Link to={vers} className="flex min-h-[60px] items-center gap-3 px-3.5 py-2 transition-colors duration-200 ease-ios hover:bg-remplissage lg:min-h-[62px] lg:gap-3.5 lg:px-4">

@@ -68,6 +68,10 @@ def rendre(rapport, analyse=None):
         "redaction_ia": analyse is not None and any(s["source"] in ("ia", "modifie") for s in rapport.sections),
         "analyse": analyse,
         "taches": [{**t, "echeance_fr": _date(t["echeance"])} for t in d["plan_action"]["liste"]],
+        "registre_risques": [{**r, "revue_fr": _date(r["date_revue"]), "accepte_fr": _date(r["accepte_le"])} for r in d.get("registre", {}).get("risques", [])],
+        "registre_derogations": [{**x, "expiration_fr": _date(x["date_expiration"])} for x in d.get("registre", {}).get("derogations", [])],
+        # Lettres des annexes : E registre, puis EBIOS RM s'il est activé, puis acteurs.
+        "lettre_ebios": "F", "lettre_acteurs": "G" if d.get("ebios") else "F",
         "documents": [{**x, "echeance_fr": _date(x["echeance"])} for x in d["documents"]["liste"]],
         "aujourd_hui": date.today().strftime("%d/%m/%Y"),
         "matrice_ebios": [(g, [(d["ebios"]["matrice"].get(f"{g}-{v}", 0)) for v in range(1, 5)]) for g in range(4, 0, -1)] if d.get("ebios") else [],

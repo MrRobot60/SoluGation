@@ -27,6 +27,10 @@ class RisqueResiduel(ProjetModel):
     proprietaire = models.ForeignKey("projets.ActeurProjet", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     statut = models.CharField(max_length=14, choices=Statut.choices, default=Statut.IDENTIFIE)
     date_revue = models.DateField(null=True, blank=True)
+    # Acceptation formelle (RSSI, autorité d'homologation) : datée, nominative, motivée.
+    accepte_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    accepte_le = models.DateTimeField(null=True, blank=True)
+    motif_acceptation = models.TextField(blank=True)
 
     champs_meme_projet = ("risque_ebios", "proprietaire")
 
@@ -34,6 +38,12 @@ class RisqueResiduel(ProjetModel):
         verbose_name = "risque résiduel"
         verbose_name_plural = "risques résiduels"
         ordering = ["-gravite", "-vraisemblance"]
+        constraints = [
+            models.CheckConstraint(
+                name="risque_acceptation_tracee",
+                condition=~models.Q(statut="accepte") | models.Q(accepte_par__isnull=False, accepte_le__isnull=False),
+            ),
+        ]
 
     def __str__(self):
         return self.intitule
@@ -61,6 +71,7 @@ class Derogation(ProjetModel):
     decidee_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     date_decision = models.DateField(null=True, blank=True)
     date_expiration = models.DateField(null=True, blank=True)
+    commentaire_decision = models.TextField(blank=True)
 
     champs_meme_projet = ("risque",)
 

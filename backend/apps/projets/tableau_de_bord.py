@@ -59,6 +59,19 @@ def _pour_vous(projet, utilisateur, aujourd_hui):
         if n:
             elements.append({"type": "validation_ia", "id": None, "titre": f"{n} conclusion(s) de l'analyse IA à valider",
                              "detail": "L'IA propose, vous validez", "echeance": aujourd_hui, "en_retard": False})
+    if peut_decider_projet(utilisateur, projet):
+        from apps.risques.models import Derogation, RisqueResiduel
+
+        if n := Derogation.objects.filter(projet=projet, statut=Derogation.Statut.DEMANDEE).count():
+            elements.append({"type": "decision", "id": None, "titre": f"{n} dérogation(s) à décider", "lien": "risques?onglet=derogations",
+                             "detail": "Accepter avec une date d'expiration, ou refuser en motivant", "echeance": aujourd_hui, "en_retard": False})
+        risques = RisqueResiduel.objects.filter(projet=projet).exclude(statut=RisqueResiduel.Statut.CLOS)
+        if n := risques.filter(statut=RisqueResiduel.Statut.IDENTIFIE).count():
+            elements.append({"type": "decision", "id": None, "titre": f"{n} risque(s) résiduel(s) à statuer", "lien": "risques",
+                             "detail": "Accepter formellement, ou traiter", "echeance": aujourd_hui, "en_retard": False})
+        if n := risques.filter(date_revue__lt=aujourd_hui).count():
+            elements.append({"type": "decision", "id": None, "titre": f"{n} risque(s) à revoir", "lien": "risques",
+                             "detail": "Date de revue dépassée", "echeance": aujourd_hui, "en_retard": True})
     # En retard d'abord, puis par échéance (sans échéance en dernier).
     elements.sort(key=lambda e: (not e["en_retard"], e["echeance"] or date.max))
     return elements

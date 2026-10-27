@@ -97,7 +97,19 @@ def instantane(projet, aujourd_hui=None):
             "liste": liste_taches[:TACHES_MAX],
         },
         "risques": {"total": risques.count(), "acceptes": risques.filter(statut=RisqueResiduel.Statut.ACCEPTE).count()},
-        "derogations": {"total": derogations.count(), "acceptees": derogations.filter(statut=Derogation.Statut.ACCEPTEE).count()},
+        "derogations": {"total": derogations.count(), "acceptees": derogations.filter(statut=Derogation.Statut.ACCEPTEE).count(),
+                        "demandees": derogations.filter(statut=Derogation.Statut.DEMANDEE).count()},
+        "registre": {
+            "risques": [{"intitule": r.intitule, "gravite": r.gravite, "vraisemblance": r.vraisemblance, "statut": r.get_statut_display(),
+                         "origine": r.get_origine_display(), "accepte_par": str(r.accepte_par or ""),
+                         "accepte_le": r.accepte_le.date().isoformat() if r.accepte_le else None,
+                         "date_revue": r.date_revue.isoformat() if r.date_revue else None}
+                        for r in risques.select_related("accepte_par").order_by("-gravite", "-vraisemblance", "intitule")[:60]],
+            "derogations": [{"cible": (f"{d.mesure.referentiel.code} {d.mesure.identifiant}" if d.mesure_id else f"Risque : {d.risque.intitule}")[:160],
+                             "motif": d.motif[:400], "statut": d.get_statut_display(), "decidee_par": str(d.decidee_par or ""),
+                             "date_expiration": d.date_expiration.isoformat() if d.date_expiration else None}
+                            for d in derogations.select_related("mesure__referentiel", "risque", "decidee_par").order_by("-cree_le")[:60]],
+        },
         "ebios": ebios,
         "ia": {
             # Propositions de la dernière analyse documentaire terminée (les précédentes sont remplacées).

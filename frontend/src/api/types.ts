@@ -53,7 +53,8 @@ export interface ReferentielTdb {
 }
 
 export interface ElementPourVous {
-  type: "tache" | "document" | "validation_ia";
+  type: "tache" | "document" | "validation_ia" | "decision";
+  lien?: string;
   id: string | null;
   titre: string;
   detail: string;
