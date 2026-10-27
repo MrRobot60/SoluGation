@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, ConstatScan, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, ConstatScan, FicheMesure, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -551,4 +551,39 @@ export function useStatuerConstat(projetId: string) {
       api<ConstatScan>(`/api/constats-scans/${id}/statuer/`, { methode: "POST", corps }),
     onSuccess: () => invaliderScans(client, projetId),
   });
+}
+
+/* ---- Bibliothèque des référentiels ------------------------------------------------------- */
+
+export function useCategories(referentielId: string | undefined) {
+  return useQuery({
+    queryKey: ["referentiels", referentielId, "categories"],
+    queryFn: () => api<{ categorie: string; nb_mesures: number }[]>(`/api/referentiels/${referentielId}/categories/`),
+    enabled: Boolean(referentielId), staleTime: 10 * 60_000,
+  });
+}
+
+export function useRechercheMesures(q: string, referentielId?: string) {
+  return useQuery({
+    queryKey: ["mesures", "recherche", q, referentielId ?? ""],
+    queryFn: () => api<Pagine<Mesure>>(`/api/mesures/?q=${encodeURIComponent(q)}${referentielId ? `&referentiel=${referentielId}` : ""}&taille=50`).then((p) => p.results),
+    enabled: q.trim().length >= 2,
+  });
+}
+
+export function useFicheMesure(id: string | null) {
+  return useQuery({ queryKey: ["fiche-mesure", id], queryFn: () => api<FicheMesure>(`/api/mesures/${id}/`), enabled: Boolean(id) });
+}
+
+export function useCorrespondance(mesureId: string | null) {
+  const client = useQueryClient();
+  const invalider = () => client.invalidateQueries({ queryKey: ["fiche-mesure"] });
+  return {
+    ajouter: useMutation({
+      mutationFn: (corps: { mesure_cible: string; type_correspondance: string; reference: string }) =>
+        api("/api/correspondances/", { methode: "POST", corps: { mesure_source: mesureId, ...corps } }),
+      onSuccess: invalider,
+    }),
+    retirer: useMutation({ mutationFn: (id: string) => api<void>(`/api/correspondances/${id}/`, { methode: "DELETE" }), onSuccess: invalider }),
+  };
 }

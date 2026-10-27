@@ -118,10 +118,24 @@ export interface Referentiel {
   nom: string;
   version: string;
   editeur: string;
+  url_source: string;
   licence: string;
+  licence_libelle: string;
+  texte_embarque: boolean;
+  date_publication: string | null;
+  date_import: string | null;
+  empreinte_source: string;
   prive: boolean;
   nb_mesures: number;
+  nb_projets: number;
   nouvelle_version: string | null;
+  nouvelle_version_libelle: string;
+}
+
+export interface FicheMesure extends Mesure {
+  correspondances: { id: string; type: string; type_libelle: string; sens: "entrante" | "sortante"; origine: string; reference: string;
+    modifiable: boolean; mesure: Mesure }[];
+  projets: { projet: string; projet_nom: string; statut: StatutConformite; statut_libelle: string }[];
 }
 
 export interface Utilisateur {
@@ -199,6 +213,8 @@ export interface DocumentDepose {
 export interface Mesure {
   id: string;
   referentiel: string;
+  referentiel_code?: string;
+  referentiel_nom?: string;
   identifiant: string;
   intitule: string;
   categorie: string;

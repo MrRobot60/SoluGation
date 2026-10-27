@@ -7,6 +7,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 
 import { PageAccueil, PageAVenir, Protege } from "./pages/Autres";
 import { PageAdministration } from "./pages/Administration";
+import { PageBibliotheque } from "./pages/Bibliotheque";
 import { PageEbios } from "./pages/Ebios";
 import { PageRapports } from "./pages/Rapports";
 import { PageReglages } from "./pages/Reglages";
@@ -29,6 +30,7 @@ const routeur = createBrowserRouter([
       { path: "/", element: <PageAccueil /> },
       { path: "/projets/nouveau", element: <PageNouveauProjet /> },
       { path: "/administration", element: <PageAdministration /> },
+      { path: "/bibliotheque", element: <PageBibliotheque /> },
       { path: "/projets/:projetId", element: <PageTableauDeBord /> },
       { path: "/projets/:projetId/documents", element: <PageDocuments /> },
       { path: "/projets/:projetId/mesures", element: <PageMesures /> },

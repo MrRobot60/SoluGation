@@ -165,6 +165,11 @@ function BarreLaterale({ projetId, referentiels }: { projetId: string; referenti
           <IconeReglages />
           Réglages
         </Link>
+        <NavLink to="/bibliotheque"
+          className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium [&>svg]:text-texte-2 ${isActive ? "bg-remplissage font-semibold" : "hover:bg-remplissage"}`}>
+          <IconeMesures />
+          Bibliothèque
+        </NavLink>
         {(moi?.est_admin || moi?.est_admin_instance) && (
           <NavLink to="/administration"
             className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium [&>svg]:text-texte-2 ${isActive ? "bg-remplissage font-semibold" : "hover:bg-remplissage"}`}>
