@@ -12,7 +12,7 @@ from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
 from apps.projets import api as projets
-from apps.referentiels.api import MesureViewSet, ReferentielViewSet
+from apps.referentiels.api import CorrespondanceViewSet, MesureViewSet, ReferentielViewSet
 from apps.suivi.api import CommentaireViewSet, NotificationViewSet, TacheViewSet
 
 routeur = DefaultRouter()
@@ -20,6 +20,7 @@ routeur.register("utilisateurs", comptes.UtilisateurViewSet, basename="utilisate
 routeur.register("roles", comptes.RoleViewSet, basename="role")
 routeur.register("referentiels", ReferentielViewSet, basename="referentiel")
 routeur.register("mesures", MesureViewSet, basename="mesure")
+routeur.register("correspondances", CorrespondanceViewSet, basename="correspondance")
 routeur.register("projets", projets.ProjetViewSet, basename="projet")
 routeur.register("acteurs", projets.ActeurProjetViewSet, basename="acteur")
 routeur.register("projet-referentiels", projets.ProjetReferentielViewSet, basename="projet-referentiel")
