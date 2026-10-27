@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, ObjetEbios, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, EtatIA, ObjetEbios, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -428,5 +428,36 @@ export function useStatuerSuggestion(projetId: string) {
     mutationFn: ({ id, decision, contenu }: { id: string; decision: "valide" | "rejete"; contenu?: Record<string, unknown> }) =>
       api<SuggestionEbios>(`/api/ebios/suggestions/${id}/statuer/`, { methode: "POST", corps: { decision, contenu } }),
     onSuccess: () => invaliderEbios(client, projetId),
+  });
+}
+
+/* ---- Administration ---------------------------------------------------------------------- */
+
+export function useEtatIA(actif: boolean) {
+  return useQuery({ queryKey: ["administration-ia"], queryFn: () => api<EtatIA>("/api/administration/ia/"), enabled: actif });
+}
+
+export function useEnregistrerIA() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (champs: Record<string, unknown>) => api<EtatIA>("/api/administration/ia/", { methode: "PUT", corps: champs }),
+    onSuccess: (etat) => {
+      client.setQueryData(["administration-ia"], etat);
+      client.invalidateQueries({ queryKey: ["moi"] });
+    },
+  });
+}
+
+export function useTesterIA() {
+  return useMutation({
+    mutationFn: () => api<{ ok: boolean; detail: string; duree_ms?: number }>("/api/administration/ia/tester/", { methode: "POST" }),
+  });
+}
+
+export function useModifierOrganisation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (champs: Record<string, unknown>) => api("/api/organisation/", { methode: "PATCH", corps: champs }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["moi"] }),
   });
 }

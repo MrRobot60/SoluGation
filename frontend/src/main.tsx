@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 
 import { PageAccueil, PageAVenir, Protege } from "./pages/Autres";
+import { PageAdministration } from "./pages/Administration";
 import { PageEbios } from "./pages/Ebios";
 import { PageRapports } from "./pages/Rapports";
 import { PageConnexion } from "./pages/Connexion";
@@ -24,6 +25,7 @@ const routeur = createBrowserRouter([
     children: [
       { path: "/", element: <PageAccueil /> },
       { path: "/projets/nouveau", element: <PageNouveauProjet /> },
+      { path: "/administration", element: <PageAdministration /> },
       { path: "/projets/:projetId", element: <PageTableauDeBord /> },
       { path: "/projets/:projetId/documents", element: <PageDocuments /> },
       { path: "/projets/:projetId/mesures", element: <PageMesures /> },

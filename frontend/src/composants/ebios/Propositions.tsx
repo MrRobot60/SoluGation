@@ -124,7 +124,7 @@ export function PanneauPropositions({ atelier, projetId, lectureSeule, parents }
     precedent.current = derniere?.etat;
   }, [derniere?.etat, enCours, client, projetId]);
 
-  if (!moi?.organisation.ia_activee || !QUOI[atelier]) return null;
+  if (!moi?.ia_disponible || !QUOI[atelier]) return null;
   const siennes = suggestions.filter((s) => s.atelier === atelier);
   const fournisseur = siennes[0]?.fournisseur;
 

@@ -93,10 +93,10 @@ class RapportTests(BaseApi):
 
     @override_settings(IA_FOURNISSEUR="scaleway", IA_CLE="", IA_ZDR_CONFIRME=False)
     def test_ia_mal_configuree_rapport_quand_meme(self):
-        with mock.patch("urllib.request.urlopen") as envoi, self.captureOnCommitCallbacks(execute=True):
+        with mock.patch("apps.ai.provider.OUVREUR.open") as envoi, self.captureOnCommitCallbacks(execute=True):
             reponse = self.api_a.post("/api/rapports/", {"projet": str(self.projet.id)}, format="json")
         self.assertEqual(reponse.status_code, 201)
-        self.assertIn("ZDR", reponse.data["avertissement"])
+        self.assertIn("responsabilité", reponse.data["avertissement"])
         self.assertIsNone(Rapport.objects.get(pk=reponse.data["id"]).analyse_ia)
         envoi.assert_not_called()
 

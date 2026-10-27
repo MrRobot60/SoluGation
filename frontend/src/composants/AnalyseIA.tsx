@@ -25,10 +25,13 @@ export function CarteAnalyseIA({ projetId, lectureSeule, nbDocuments }: { projet
     etatPrecedent.current = derniere?.etat;
   }, [derniere?.etat, enCours, client, projetId]);
 
-  if (moi && !moi.organisation.ia_activee) {
+  if (moi && !moi.ia_disponible) {
     return (
       <p className="flex items-center gap-2 rounded-groupe bg-groupe px-4 py-3.5 text-sm text-texte-2 shadow-groupe">
-        <IconeEtincelle taille={16} /> L'IA est désactivée pour votre organisation : aucun document n'est envoyé à un fournisseur.
+        <IconeEtincelle taille={16} className="shrink-0" />
+        {moi.organisation.ia_activee
+          ? "Aucune IA n'est configurée sur cette installation : évaluez les mesures à la main. L'administrateur peut en brancher une depuis Administration."
+          : "L'IA est désactivée pour votre organisation : aucun document n'est envoyé à un fournisseur."}
       </p>
     );
   }

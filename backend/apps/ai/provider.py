@@ -42,28 +42,45 @@ class Fournisseur:
     nom = ""
     modele = ""
 
-    def verifier_configuration(self):
-        """Lève IAIndisponible si un appel ne peut pas partir (appelé avant de créer l'analyse)."""
+    def verifier_configuration(self, reseau=True):
+        """Lève IAIndisponible si un appel ne peut pas partir (appelé avant de créer l'analyse).
+        `reseau=False` : contrôle de la configuration seule, sans résolution DNS."""
 
     def completer_json(self, systeme: str, utilisateur: str) -> ReponseIA:
         raise NotImplementedError
 
 
+class _SansRedirection(urllib.request.HTTPRedirectHandler):
+    """Une redirection pourrait mener vers une adresse interne : on ne la suit jamais."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+OUVREUR = urllib.request.build_opener(_SansRedirection)
+
+
 class CompatibleOpenAI(Fournisseur):
-    ESSAIS = 4
-
-    def __init__(self, nom, url, modele, cle="", zdr_confirme=False, cle_requise=True, delai=120):
-        self.nom, self.url, self.modele, self.cle = nom, url.rstrip("/"), modele, cle
+    def __init__(self, nom, url, modele, cle="", zdr_confirme=False, cle_requise=True, delai=120, proteger_reseau=False, essais=4):
+        self.nom, self.url, self.modele, self.cle, self.essais = nom, url.rstrip("/"), modele, cle, essais
         self.zdr_confirme, self.cle_requise, self.delai = zdr_confirme, cle_requise, delai
+        self.proteger_reseau = proteger_reseau  # URL saisie à l'écran : contrôle SSRF à chaque appel
 
-    def verifier_configuration(self):
+    def verifier_configuration(self, reseau=True):
         if not self.zdr_confirme:
-            raise IAIndisponible(f"Envoi au fournisseur d'IA ({self.nom}) bloqué : la conservation zéro (ZDR) "
-                                 "n'est pas confirmée dans la configuration.")
+            raise IAIndisponible(f"Envoi au fournisseur d'IA ({self.nom}) bloqué : l'administrateur n'a pas accepté "
+                                 "la responsabilité des conditions de ce fournisseur (conservation, entraînement).")
         if not self.url or not self.modele:
             raise IAIndisponible("URL ou modèle du fournisseur d'IA absent de la configuration.")
         if self.cle_requise and not self.cle:
             raise IAIndisponible(f"Clé d'API {self.nom} absente de la configuration.")
+        if self.proteger_reseau and reseau:
+            from .securite import UrlRefusee, verifier_url
+
+            try:
+                verifier_url(self.url)
+            except UrlRefusee as e:
+                raise IAIndisponible(str(e)) from None
 
     def completer_json(self, systeme, utilisateur):
         self.verifier_configuration()  # garde-fou répété au plus près de l'envoi
@@ -76,21 +93,21 @@ class CompatibleOpenAI(Fournisseur):
         entetes = {"Content-Type": "application/json", "Accept": "application/json"}
         if self.cle:
             entetes["Authorization"] = f"Bearer {self.cle}"
-        for essai in range(self.ESSAIS):
+        for essai in range(self.essais):
             requete = urllib.request.Request(f"{self.url}/chat/completions", data=corps, method="POST", headers=entetes)
             try:
-                with urllib.request.urlopen(requete, timeout=self.delai) as r:  # noqa: S310 (URL fixée par la config)
+                with OUVREUR.open(requete, timeout=self.delai) as r:  # noqa: S310 (URL fixée par l'administrateur)
                     reponse = json.load(r)
                 break
             except urllib.error.HTTPError as e:
-                if e.code in (429, 500, 502, 503, 504) and essai < self.ESSAIS - 1:
+                if e.code in (429, 500, 502, 503, 504) and essai < self.essais - 1:
                     attente = min(float(e.headers.get("Retry-After") or 2 ** (essai + 1)), 30)
                     journal.warning("%s HTTP %s, nouvel essai dans %ss", self.nom, e.code, attente)
                     time.sleep(attente)
                     continue
                 raise IAIndisponible(f"Le fournisseur d'IA a refusé la requête (HTTP {e.code}).") from None
             except (urllib.error.URLError, TimeoutError):
-                if essai < self.ESSAIS - 1:
+                if essai < self.essais - 1:
                     time.sleep(2 ** (essai + 1))
                     continue
                 raise IAIndisponible("Fournisseur d'IA injoignable.") from None
@@ -107,9 +124,10 @@ class CompatibleOpenAI(Fournisseur):
 
 
 class Factice(Fournisseur):
-    """Fournisseur hors ligne, pour le développement et les démonstrations sans clé : rapproche les mots de
-    l'intitulé de chaque mesure des phrases du document, et produit des recommandations, une rédaction de rapport et des propositions EBIOS RM génériques. Aucune donnée ne sort de la machine. Ses résultats
-    sont marqués `factice` et n'ont aucune valeur d'analyse."""
+    """Fournisseur hors ligne, pour le développement, les tests et les démonstrations : rapproche les mots de
+    l'intitulé de chaque mesure des phrases du document, et produit des recommandations, une rédaction de rapport
+    et des propositions EBIOS RM génériques. Aucune donnée ne sort de la machine. Ses résultats sont marqués
+    `factice` et n'ont aucune valeur d'analyse. Jamais proposé à l'écran d'administration."""
 
     nom = "factice"
     modele = "mots-cles-v1"
@@ -194,18 +212,47 @@ class Factice(Fournisseur):
         return ReponseIA({"resultats": resultats}, len(utilisateur) // 4, 0)
 
 
+PRESELECTIONS = {  # raccourcis du fichier .env (rétrocompatibilité) : URL et modèle par défaut
+    "scaleway": ("https://api.scaleway.ai/v1", "mistral-small-3.2-24b-instruct-2506"),
+    "mistral": ("https://api.mistral.ai/v1", "mistral-small-latest"),
+}
+
+
+def depuis_ecran():
+    """Fournisseur saisi à l'écran d'administration, ou None s'il n'est pas actif."""
+    from .models import ConfigurationIA
+    from .securite import dechiffrer
+
+    c = ConfigurationIA.courante()
+    if c is None or not c.actif:
+        return None
+    return CompatibleOpenAI(c.nom or "fournisseur", c.url, c.modele, dechiffrer(c.cle_chiffree),
+                            zdr_confirme=c.responsabilite_acceptee_le is not None, cle_requise=False, proteger_reseau=True)
+
+
 def obtenir_fournisseur() -> Fournisseur:
+    """Ordre : écran d'administration, puis fichier .env, sinon aucune IA (le produit fonctionne sans)."""
+    if (fournisseur := depuis_ecran()) is not None:
+        return fournisseur
     choix = settings.IA_FOURNISSEUR
+    if choix in ("", "aucun"):
+        raise IAIndisponible("Aucune IA n'est configurée sur cette installation.")
     if choix == "factice":
         return Factice()
     if choix == "mistral":
         return CompatibleOpenAI("mistral", settings.MISTRAL_URL, settings.MISTRAL_MODELE, settings.MISTRAL_API_KEY,
                                 settings.MISTRAL_ZDR_CONFIRME)
-    if choix == "scaleway":
-        return CompatibleOpenAI("scaleway", settings.IA_URL or "https://api.scaleway.ai/v1",
-                                settings.IA_MODELE or "mistral-small-3.2-24b-instruct-2506", settings.IA_CLE,
-                                settings.IA_ZDR_CONFIRME)
-    if choix == "compatible":  # OVHcloud, IONOS, Ollama ou vLLM auto-hébergé… (clé facultative en local)
-        return CompatibleOpenAI(settings.IA_NOM or "compatible", settings.IA_URL, settings.IA_MODELE, settings.IA_CLE,
-                                settings.IA_ZDR_CONFIRME, cle_requise=False)
+    if choix in PRESELECTIONS or choix == "compatible":
+        url, modele = PRESELECTIONS.get(choix, ("", ""))
+        return CompatibleOpenAI(settings.IA_NOM or choix, settings.IA_URL or url, settings.IA_MODELE or modele, settings.IA_CLE,
+                                settings.IA_ZDR_CONFIRME, cle_requise=choix != "compatible")
     raise IAIndisponible("Fournisseur d'IA inconnu dans la configuration.")
+
+
+def ia_disponible():
+    """Une IA est configurée et prête (sans appel réseau) : sert à afficher ou masquer les fonctions IA."""
+    try:
+        obtenir_fournisseur().verifier_configuration(reseau=False)
+    except IAIndisponible:
+        return False
+    return True

@@ -6,7 +6,7 @@ import json
 import zipfile
 from unittest import mock
 
-from django.test import SimpleTestCase, override_settings
+from django.test import TestCase, override_settings
 
 from apps.audit.models import JournalAudit
 from apps.core.models import StatutValidation
@@ -118,10 +118,10 @@ class AnalyseTests(BaseApi):
 
     @override_settings(IA_FOURNISSEUR="mistral", MISTRAL_API_KEY="cle-test", MISTRAL_ZDR_CONFIRME=False)
     def test_mistral_sans_zdr_n_envoie_rien(self):
-        with mock.patch("urllib.request.urlopen") as envoi, self.captureOnCommitCallbacks(execute=True):
+        with mock.patch("apps.ai.provider.OUVREUR.open") as envoi, self.captureOnCommitCallbacks(execute=True):
             reponse = self.api_a.post("/api/analyses-ia/", {"projet": str(self.projet.id)}, format="json")
         self.assertEqual(reponse.status_code, 503)
-        self.assertIn("ZDR", reponse.data["detail"])
+        self.assertIn("responsabilité", reponse.data["detail"])
         envoi.assert_not_called()
         self.assertFalse(AnalyseIA.objects.exists())
         with self.assertRaises(IAIndisponible):
@@ -165,7 +165,7 @@ class AnalyseTests(BaseApi):
         self.assertIn("analyse des risques", r.extraits[0]["texte"].lower())
 
 
-class FournisseursTests(SimpleTestCase):
+class FournisseursTests(TestCase):
     @override_settings(IA_FOURNISSEUR="scaleway", IA_CLE="cle-test", IA_URL="", IA_MODELE="", IA_ZDR_CONFIRME=True)
     def test_scaleway_requete_compatible_openai(self):
         reponse = mock.MagicMock()
@@ -173,7 +173,7 @@ class FournisseursTests(SimpleTestCase):
             "choices": [{"message": {"content": '```json\n{"resultats": []}\n```'}}],
             "usage": {"prompt_tokens": 12, "completion_tokens": 3},
         }).encode())
-        with mock.patch("urllib.request.urlopen", return_value=reponse) as envoi:
+        with mock.patch("apps.ai.provider.OUVREUR.open", return_value=reponse) as envoi:
             resultat = obtenir_fournisseur().completer_json("systeme", "utilisateur")
         self.assertEqual(resultat.contenu, {"resultats": []})  # bloc de code toléré
         self.assertEqual((resultat.jetons_entree, resultat.jetons_sortie), (12, 3))
@@ -186,7 +186,7 @@ class FournisseursTests(SimpleTestCase):
 
     @override_settings(IA_FOURNISSEUR="scaleway", IA_CLE="cle-test", IA_URL="", IA_MODELE="", IA_ZDR_CONFIRME=False)
     def test_scaleway_bloque_sans_confirmation(self):
-        with mock.patch("urllib.request.urlopen") as envoi, self.assertRaises(IAIndisponible):
+        with mock.patch("apps.ai.provider.OUVREUR.open") as envoi, self.assertRaises(IAIndisponible):
             obtenir_fournisseur().completer_json("s", "u")
         envoi.assert_not_called()
 

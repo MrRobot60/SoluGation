@@ -11,7 +11,20 @@ export interface Moi {
   role: { code: string; libelle: string; lecture_seule: boolean } | null;
   organisation: { id: string; nom: string; ia_activee: boolean };
   est_admin: boolean;
+  est_admin_instance: boolean;
   lecture_seule: boolean;
+  ia_disponible: boolean;
+}
+
+export interface EtatIA {
+  source: "ecran" | "fichier" | "aucune";
+  disponible: boolean;
+  ecran: {
+    actif: boolean; nom: string; url: string; modele: string; a_une_cle: boolean; cle_fin: string;
+    responsabilite_acceptee_par: string; responsabilite_acceptee_le: string | null; modifie_par: string; modifie_le: string | null;
+  };
+  fichier: { fournisseur: string; nom: string; url: string; modele: string };
+  reseau_local_autorise: boolean;
 }
 
 export interface Pagine<T> {

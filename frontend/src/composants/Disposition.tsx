@@ -164,6 +164,13 @@ function BarreLaterale({ projetId, referentiels }: { projetId: string; referenti
           <IconeReglages />
           Réglages
         </Link>
+        {(moi?.est_admin || moi?.est_admin_instance) && (
+          <NavLink to="/administration"
+            className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium [&>svg]:text-texte-2 ${isActive ? "bg-remplissage font-semibold" : "hover:bg-remplissage"}`}>
+            <IconeBouclier />
+            Administration
+          </NavLink>
+        )}
         <div className="px-1"><ChoixDuTheme /></div>
         <div className="mt-1 flex items-center gap-2.5 border-t border-separateur px-3 pt-2.5">
           <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-remplissage text-xs font-bold text-texte-2">
@@ -234,7 +241,9 @@ function BarreMobile({ projetId }: { projetId: string }) {
 }
 
 export function Disposition({ children, referentiels }: { children: ReactNode; referentiels?: ReactNode }) {
-  const { projetId = "" } = useParams();
+  const { projetId: dansUrl = "" } = useParams();
+  const { data: projets } = useProjets();
+  const projetId = dansUrl || projets?.results[0]?.id || ""; // pages hors projet (administration) : premier projet accessible
   return (
     <div className="flex min-h-dvh items-start gap-3 p-0 lg:p-3">
       <BarreLaterale projetId={projetId} referentiels={referentiels} />

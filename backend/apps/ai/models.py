@@ -87,3 +87,28 @@ class RecommandationIA(ValidationHumaineModel, ProjetModel):
     class Meta(ValidationHumaineModel.Meta):
         verbose_name = "recommandation IA"
         verbose_name_plural = "recommandations IA"
+
+
+class ConfigurationIA(models.Model):
+    """Fournisseur d'IA de l'installation, saisi par son administrateur (prime sur le fichier `.env`).
+    Une seule ligne. La clé d'API est chiffrée (voir ai/securite.py) et n'est jamais renvoyée au navigateur."""
+
+    instance = models.PositiveSmallIntegerField(default=1, unique=True, editable=False)
+    actif = models.BooleanField(default=False)
+    nom = models.CharField(max_length=60, blank=True, help_text="Nom affiché et journalisé, ex. « Scaleway », « Ollama interne ».")
+    url = models.URLField(max_length=300, blank=True, help_text="Adresse de l'API compatible OpenAI, ex. https://api.exemple.eu/v1")
+    modele = models.CharField(max_length=120, blank=True)
+    cle_chiffree = models.TextField(blank=True)
+    cle_fin = models.CharField(max_length=4, blank=True, help_text="Quatre derniers caractères, pour reconnaître la clé.")
+    responsabilite_acceptee_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    responsabilite_acceptee_le = models.DateTimeField(null=True, blank=True)
+    modifie_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    modifie_le = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "configuration de l'IA"
+        verbose_name_plural = "configuration de l'IA"
+
+    @classmethod
+    def courante(cls):
+        return cls.objects.filter(instance=1).first()

@@ -45,14 +45,21 @@ class UtilisateurSerializer(serializers.ModelSerializer):
 class MoiSerializer(UtilisateurSerializer):
     organisation = OrganisationSerializer(read_only=True)
     est_admin = serializers.SerializerMethodField()
+    est_admin_instance = serializers.BooleanField(source="is_superuser", read_only=True)
     lecture_seule = serializers.BooleanField(source="est_lecture_seule", read_only=True)
+    ia_disponible = serializers.SerializerMethodField(help_text="IA configurée sur l'installation et activée pour l'organisation.")
 
     class Meta(UtilisateurSerializer.Meta):
-        fields = UtilisateurSerializer.Meta.fields + ["organisation", "est_admin", "lecture_seule"]
+        fields = UtilisateurSerializer.Meta.fields + ["organisation", "est_admin", "est_admin_instance", "lecture_seule", "ia_disponible"]
         read_only_fields = fields
 
     def get_est_admin(self, obj) -> bool:
         return est_admin_organisation(obj)
+
+    def get_ia_disponible(self, obj) -> bool:
+        from apps.ai.provider import ia_disponible
+
+        return bool(obj.organisation and obj.organisation.ia_activee and ia_disponible())
 
 
 class ConnexionSerializer(serializers.Serializer):

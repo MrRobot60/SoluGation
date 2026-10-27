@@ -2,6 +2,7 @@ from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
+from apps.ai import administration as administration_ia
 from apps.ai.api import AnalyseViewSet, RecommandationViewSet, ResultatViewSet
 from apps.ebios.api import ROUTES as ROUTES_EBIOS
 from apps.rapports.api import RapportViewSet
@@ -41,6 +42,8 @@ urlpatterns = [
     path("auth/deconnexion/", comptes.DeconnexionView.as_view()),
     path("auth/moi/", comptes.MoiView.as_view()),
     path("organisation/", comptes.OrganisationView.as_view()),
+    path("administration/ia/", administration_ia.ConfigurationIAView.as_view()),
+    path("administration/ia/tester/", administration_ia.TestIAView.as_view()),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),
     *routeur.urls,

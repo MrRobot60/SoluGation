@@ -38,7 +38,7 @@ export function BandeauRecommandations({ projetId, lectureSeule, nbSansRecommand
   const { derniere, enCours } = useSuiviRecommandations(projetId);
   const lancer = useLancerAnalyse(projetId, "recommandation");
   const aRelire = recos.filter((r) => r.statut_validation === "a_valider").length;
-  if (!moi?.organisation.ia_activee || (nbSansRecommandation === 0 && aRelire === 0 && !enCours)) return null;
+  if (!moi?.ia_disponible || (nbSansRecommandation === 0 && aRelire === 0 && !enCours)) return null;
 
   return (
     <div role="status" aria-live="polite" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-groupe bg-groupe px-4 py-3 shadow-groupe">
@@ -76,10 +76,10 @@ export function CarteRecommandation({ tache, projetId, lectureSeule }: { tache: 
   const statuer = useStatuerRecommandation(projetId);
   const reco = recommandationDe(recos, tache.id);
   const close = tache.statut === "terminee" || tache.statut === "abandonnee";
-  if (!moi?.organisation.ia_activee && !reco) return null;
+  if (!moi?.ia_disponible && !reco) return null;
 
   if (!reco || reco.statut_validation === "rejete") {
-    if (lectureSeule || close || !moi?.organisation.ia_activee) return null;
+    if (lectureSeule || close || !moi?.ia_disponible) return null;
     return (
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={enCours || lancer.isPending} onClick={() => lancer.mutate({ taches: [tache.id] })}
