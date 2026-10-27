@@ -74,6 +74,15 @@ export interface TableauDeBord {
     date_prochaine_revue: string | null;
     lecture_seule: boolean;
     peut_decider: boolean;
+    peut_administrer: boolean;
+    peut_prononcer: boolean;
+    archive: boolean;
+    decision: "" | "homologation" | "provisoire" | "refus";
+    decision_libelle: string;
+    decision_par: string;
+    date_decision: string | null;
+    date_fin_validite: string | null;
+    periodicite_revue_mois: number;
   };
   referentiels: ReferentielTdb[];
   evaluation: { evaluees: number; total: number };
@@ -317,9 +326,28 @@ export interface Tache {
 export interface Acteur {
   id: string;
   utilisateur: string | null;
+  nom: string;
+  email: string;
+  organisme: string;
+  role: string;
   affichage: string;
   role_libelle: string;
   role_code: string;
+}
+
+export interface Projet {
+  id: string;
+  nom: string;
+  description: string;
+  type_bien: TypeBien;
+  niveau_vise: NiveauVise;
+  statut: string;
+  referentiels: string[];
+  ebios_active: boolean;
+  notifications_actives: boolean;
+  calendrier_actif: boolean;
+  periodicite_revue_mois: number;
+  date_prochaine_revue: string | null;
 }
 
 export interface Commentaire {

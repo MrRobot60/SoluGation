@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, EtatIA, ObjetEbios, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, EtatIA, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -345,7 +345,7 @@ export function useValiderRapport(projetId: string) {
 /* ---- EBIOS RM ---------------------------------------------------------------------------- */
 
 function invaliderEbios(client: ReturnType<typeof useQueryClient>, projetId: string) {
-  for (const cle of ["ebios", "objets", "taches", "tableau-de-bord"]) client.invalidateQueries({ queryKey: [cle, projetId] });
+  for (const cle of ["ebios", "objets", "taches", "tableau-de-bord", "acteurs", "projet"]) client.invalidateQueries({ queryKey: [cle, projetId] });
 }
 
 /** Liste d'objets d'un projet par chemin d'API (ex. « risques-residuels »). */
@@ -478,5 +478,32 @@ export function useModifierOrganisation() {
   return useMutation({
     mutationFn: (champs: Record<string, unknown>) => api("/api/organisation/", { methode: "PATCH", corps: champs }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["moi"] }),
+  });
+}
+
+/* ---- Réglages du projet ------------------------------------------------------------------ */
+
+export function useProjet(projetId: string) {
+  return useQuery({ queryKey: ["projet", projetId], queryFn: () => api<Projet>(`/api/projets/${projetId}/`), enabled: Boolean(projetId) });
+}
+
+function invaliderProjet(client: ReturnType<typeof useQueryClient>, projetId: string) {
+  for (const cle of ["projet", "tableau-de-bord", "acteurs", "projets"]) client.invalidateQueries({ queryKey: cle === "projets" ? [cle] : [cle, projetId] });
+}
+
+export function useModifierProjet(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (champs: Partial<Projet>) => api<Projet>(`/api/projets/${projetId}/`, { methode: "PATCH", corps: champs }),
+    onSuccess: () => invaliderProjet(client, projetId),
+  });
+}
+
+/** Actions du projet : decision, revue-faite, archiver, desarchiver. */
+export function useActionProjet(projetId: string, action: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (corps: Record<string, unknown> = {}) => api<Projet>(`/api/projets/${projetId}/${action}/`, { methode: "POST", corps }),
+    onSuccess: () => invaliderProjet(client, projetId),
   });
 }
