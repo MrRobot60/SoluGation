@@ -11,6 +11,7 @@ import { PageBibliotheque } from "./pages/Bibliotheque";
 import { PageEbios } from "./pages/Ebios";
 import { PageRapports } from "./pages/Rapports";
 import { PageReglages } from "./pages/Reglages";
+import { PageReunions } from "./pages/Reunions";
 import { PageRisques } from "./pages/Risques";
 import { PageScans } from "./pages/Scans";
 import { PageConnexion } from "./pages/Connexion";
@@ -40,6 +41,7 @@ const routeur = createBrowserRouter([
       { path: "/projets/:projetId/risques", element: <PageRisques /> },
       { path: "/projets/:projetId/reglages", element: <PageReglages /> },
       { path: "/projets/:projetId/scans", element: <PageScans /> },
+      { path: "/projets/:projetId/reunions", element: <PageReunions /> },
       { path: "/projets/:projetId/:rubrique", element: <PageAVenir /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],

@@ -55,6 +55,7 @@ class ReunionTests(BaseApi):
             self.assertIn(f"mailto:{m.to[0]}", contenu)
             autres = {"chef@a.test", "presta@ext.test", "rssi@a.test"} - {m.to[0]}
             self.assertFalse(any(a in contenu for a in autres))  # aucune autre adresse exposée
+        self.assertEqual(len(mail.outbox), 3)  # pas de second mail de notification en plus de l'invitation
         mail.outbox.clear()
         self.planifier(inviter=False, titre="Point sans invitation")
         self.assertEqual(self.invitations(), [])

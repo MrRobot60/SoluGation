@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, ConstatScan, FicheMesure, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, ConstatScan, FicheMesure, Reunion, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -585,5 +585,46 @@ export function useCorrespondance(mesureId: string | null) {
       onSuccess: invalider,
     }),
     retirer: useMutation({ mutationFn: (id: string) => api<void>(`/api/correspondances/${id}/`, { methode: "DELETE" }), onSuccess: invalider }),
+  };
+}
+
+/* ---- Réunions ---------------------------------------------------------------------------- */
+
+export function useReunions(projetId: string) {
+  return useQuery({ queryKey: ["reunions", projetId], queryFn: () => toutesLesPages<Reunion>(`/api/reunions/?projet=${projetId}`), enabled: Boolean(projetId) });
+}
+
+function invaliderReunions(client: ReturnType<typeof useQueryClient>, projetId: string) {
+  for (const cle of ["reunions", "taches", "tableau-de-bord"]) client.invalidateQueries({ queryKey: [cle, projetId] });
+}
+
+export function useEnregistrerReunion(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...champs }: Partial<Reunion> & { inviter?: boolean }) =>
+      id ? api<Reunion>(`/api/reunions/${id}/`, { methode: "PATCH", corps: champs })
+        : api<Reunion>("/api/reunions/", { methode: "POST", corps: { projet: projetId, ...champs } }),
+    onSuccess: () => invaliderReunions(client, projetId),
+  });
+}
+
+/** annuler, valider-compte-rendu */
+export function useActionReunion(projetId: string, action: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<Reunion>(`/api/reunions/${id}/${action}/`, { methode: "POST" }),
+    onSuccess: () => invaliderReunions(client, projetId),
+  });
+}
+
+export function useActionsDecidees(projetId: string, reunionId: string | undefined) {
+  const client = useQueryClient();
+  return {
+    liste: useQuery({ queryKey: ["reunions", projetId, "actions", reunionId], queryFn: () => api<Tache[]>(`/api/reunions/${reunionId}/actions/`), enabled: Boolean(reunionId) }),
+    ajouter: useMutation({
+      mutationFn: (corps: { titre: string; responsable?: string | null; echeance?: string | null }) =>
+        api<Tache>(`/api/reunions/${reunionId}/actions/`, { methode: "POST", corps }),
+      onSuccess: () => invaliderReunions(client, projetId),
+    }),
   };
 }

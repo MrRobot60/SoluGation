@@ -33,8 +33,9 @@ def acteurs_concernes(projet, *, responsable=None, roles=("chef-projet",), en_pl
     return list(destinataires.values())
 
 
-def notifier(projet, *, auteur, type_evenement, titre, message, lien, destinataires):
-    """`auteur=None` : message du système (rappel), envoyé à tous les destinataires."""
+def notifier(projet, *, auteur, type_evenement, titre, message, lien, destinataires, mail=True):
+    """`auteur=None` : message du système (rappel), envoyé à tous les destinataires.
+    `mail=False` : notification dans l'appli seulement (quand un autre mail part déjà, ex. invitation .ics)."""
     if not projet.notifications_actives:
         return []
     utilisateurs = [d for d in destinataires if not isinstance(d, str) and (auteur is None or d.pk != auteur.pk) and d.is_active
@@ -46,7 +47,7 @@ def notifier(projet, *, auteur, type_evenement, titre, message, lien, destinatai
         for u in utilisateurs
     ]
     adresses = [u.email for u in utilisateurs] + externes
-    if adresses:
+    if adresses and mail:
         ids = [n.pk for n in notifications]
         transaction.on_commit(lambda: _envoyer(projet, auteur, titre, message, lien, adresses, ids))
     return notifications

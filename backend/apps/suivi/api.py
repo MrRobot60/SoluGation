@@ -284,10 +284,11 @@ class ReunionViewSet(ProjetScopedViewSet):
 
     def _prevenir(self, reunion, titre):
         destinataires = [a.utilisateur for a in reunion.participants.select_related("utilisateur") if a.utilisateur_id]
+        envoyer = self._inviter()
         notifier(reunion.projet, auteur=self.request.user, type_evenement="reunion.invitation", titre=titre,
                  message=f"{timezone.localtime(reunion.debut):%d/%m/%Y à %H:%M}{' · ' + reunion.lieu if reunion.lieu else ''}",
-                 lien=lien(reunion), destinataires=destinataires)
-        if self._inviter():
+                 lien=lien(reunion), destinataires=destinataires, mail=not envoyer)  # l'invitation .ics tient lieu de mail
+        if envoyer:
             inviter(reunion)
 
     def perform_create(self, serializer):

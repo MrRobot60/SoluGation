@@ -53,7 +53,7 @@ export interface ReferentielTdb {
 }
 
 export interface ElementPourVous {
-  type: "tache" | "document" | "validation_ia" | "decision";
+  type: "tache" | "document" | "validation_ia" | "decision" | "reunion";
   lien?: string;
   id: string | null;
   titre: string;
@@ -489,4 +489,24 @@ export interface ConstatScan {
   commentaire_statut: string;
   statut_par_nom: string;
   a_une_tache: boolean;
+}
+
+export interface Reunion {
+  id: string;
+  projet: string;
+  titre: string;
+  debut: string;
+  fin: string;
+  lieu: string;
+  lien_visio: string;
+  participants: string[];
+  participants_detail: { id: string; nom: string; role: string; externe: boolean }[];
+  ordre_du_jour: string;
+  compte_rendu: string;
+  statut: "planifiee" | "tenue" | "annulee";
+  organisateur: string;
+  organisateur_nom: string;
+  compte_rendu_valide_par_nom: string;
+  compte_rendu_valide_le: string | null;
+  nb_actions: number;
 }

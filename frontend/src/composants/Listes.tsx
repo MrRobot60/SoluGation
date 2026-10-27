@@ -2,7 +2,7 @@ import { Link } from "react-router";
 
 import type { TableauDeBord } from "../api/types";
 import { echeance, phraseActivite, quand } from "../lib/format";
-import { Chevron, IconeBouclier, IconeCercle, IconeDocument, IconeEtincelle } from "./Icones";
+import { Chevron, IconeBouclier, IconeCalendrier, IconeCercle, IconeDocument, IconeEtincelle } from "./Icones";
 import { COUVERTURE } from "./statuts";
 
 function EnTeteBloc({ id, titre, lien, note }: { id: string; titre: string; lien?: { vers: string; texte: string }; note?: string }) {
@@ -15,7 +15,7 @@ function EnTeteBloc({ id, titre, lien, note }: { id: string; titre: string; lien
   );
 }
 
-const ICONES = { tache: IconeCercle, document: IconeDocument, validation_ia: IconeEtincelle, decision: IconeBouclier };
+const ICONES = { tache: IconeCercle, document: IconeDocument, validation_ia: IconeEtincelle, decision: IconeBouclier, reunion: IconeCalendrier };
 
 export function PourVous({ d, base }: { d: TableauDeBord; base: string }) {
   return (
