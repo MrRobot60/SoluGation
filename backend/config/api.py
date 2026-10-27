@@ -13,7 +13,7 @@ from apps.comptes import api as comptes
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
 from apps.projets import api as projets
 from apps.referentiels.api import CorrespondanceViewSet, MesureViewSet, ReferentielViewSet
-from apps.suivi.api import CommentaireViewSet, NotificationViewSet, TacheViewSet
+from apps.suivi.api import CommentaireViewSet, NotificationViewSet, ReunionViewSet, TacheViewSet
 
 routeur = DefaultRouter()
 routeur.register("utilisateurs", comptes.UtilisateurViewSet, basename="utilisateur")
@@ -35,6 +35,7 @@ routeur.register("rapports", RapportViewSet, basename="rapport")
 routeur.register("risques-residuels", RisqueViewSet, basename="risque-residuel")
 routeur.register("derogations", DerogationViewSet, basename="derogation")
 routeur.register("imports-scans", ImportViewSet, basename="import-scan")
+routeur.register("reunions", ReunionViewSet, basename="reunion")
 routeur.register("constats-scans", ConstatViewSet, basename="constat-scan")
 for prefixe, vue, nom in ROUTES_EBIOS:
     routeur.register(prefixe, vue, basename=nom)

@@ -35,6 +35,7 @@ class Tache(ProjetModel):
         ANALYSE_IA = "analyse_ia", "Analyse IA"
         SCAN = "scan", "Rapport de scan"
         EBIOS = "ebios", "EBIOS RM"
+        REUNION = "reunion", "Décidée en réunion"
         MANUELLE = "manuelle", "Manuelle"
 
     plan = models.ForeignKey(ActionPlan, on_delete=models.CASCADE, related_name="taches")
@@ -45,6 +46,7 @@ class Tache(ProjetModel):
         "ai.ResultatAnalyseMesure", null=True, blank=True, on_delete=models.SET_NULL, related_name="taches"
     )
     constat_scan = models.ForeignKey("scans.ConstatScan", null=True, blank=True, on_delete=models.SET_NULL, related_name="taches")
+    reunion = models.ForeignKey("suivi.Reunion", null=True, blank=True, on_delete=models.SET_NULL, related_name="actions")
     responsable = models.ForeignKey("projets.ActeurProjet", null=True, blank=True, on_delete=models.PROTECT, related_name="taches")
     echeance = models.DateField(null=True, blank=True)
     preuve_attendue = models.TextField(blank=True)
@@ -54,7 +56,7 @@ class Tache(ProjetModel):
     cloturee_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     cloturee_le = models.DateTimeField(null=True, blank=True)
 
-    champs_meme_projet = ("plan", "resultat_analyse", "constat_scan", "responsable")
+    champs_meme_projet = ("plan", "resultat_analyse", "constat_scan", "responsable", "reunion")
 
     class Meta:
         verbose_name = "tâche"
@@ -118,6 +120,12 @@ class Reunion(ProjetModel):
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.PLANIFIEE)
     organisateur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     id_externe = models.CharField(max_length=255, blank=True, help_text="Identifiant Outlook / Microsoft Graph (synchro ultérieure).")
+    # Compte rendu validé : figé, diffusé aux participants.
+    compte_rendu_valide_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    compte_rendu_valide_le = models.DateTimeField(null=True, blank=True)
+    # Invitations iCalendar : numéro de version (SEQUENCE) pour que les agendas appliquent les mises à jour.
+    sequence = models.PositiveIntegerField(default=0, editable=False)
+    rappel_envoye_le = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name = "réunion"

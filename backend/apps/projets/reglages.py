@@ -7,7 +7,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from apps.audit.models import JournalAudit
-from apps.suivi.models import Tache
+from apps.suivi.models import Reunion, Tache
 from apps.suivi.notifications import acteurs_concernes, notifier
 
 from .models import DocumentAttendu, Projet
@@ -73,11 +73,11 @@ def rappeler_revues(aujourd_hui=None):
     return envoyes
 
 
-def _texte_ics(texte):
+def texte_ics(texte):
     return str(texte).replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\r", "").replace("\n", "\\n")
 
 
-def _plier(ligne):
+def plier_ics(ligne):
     """Lignes iCalendar limitées à 75 octets (RFC 5545), continuées par une espace."""
     octets, morceaux = ligne.encode(), []
     while len(octets) > 75:
@@ -91,7 +91,8 @@ def _plier(ligne):
 
 
 def evenements(projet):
-    """Échéances du projet : tâches ouvertes, documents attendus, revue, dérogations, fin de validité, ateliers."""
+    """Échéances du projet : tâches ouvertes, documents attendus, revue, dérogations, fin de validité, ateliers,
+    réunions planifiées. Une échéance est une date ; une réunion, un couple (début, fin)."""
     from apps.ebios.models import AtelierEBIOS
     from apps.risques.models import Derogation
 
@@ -109,15 +110,21 @@ def evenements(projet):
     if projet.ebios_active:
         for a in AtelierEBIOS.objects.filter(projet=projet, date_atelier__isnull=False):
             yield f"atelier-{a.pk}", a.date_atelier, f"EBIOS RM : {a.get_numero_display()}", f"{base}/ebios?atelier={a.numero}"
+    for r in Reunion.objects.filter(projet=projet, statut=Reunion.Statut.PLANIFIEE):  # avec heure (début, fin)
+        yield f"reunion-{r.pk}", (r.debut, r.fin), f"Réunion : {r.titre}", f"{base}/reunions?reunion={r.pk}"
 
 
 def calendrier_ics(projet):
     horodatage = datetime.now(tz.utc).strftime("%Y%m%dT%H%M%SZ")
     lignes = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//SoluGation//Homologation//FR", "CALSCALE:GREGORIAN",
-              f"X-WR-CALNAME:{_texte_ics(f'SoluGation · {projet.nom}')}"]
-    for uid, jour, titre, url in evenements(projet):
-        lignes += ["BEGIN:VEVENT", f"UID:{uid}@solugation", f"DTSTAMP:{horodatage}", f"DTSTART;VALUE=DATE:{jour:%Y%m%d}",
-                   f"DTEND;VALUE=DATE:{jour + timedelta(days=1):%Y%m%d}", f"SUMMARY:{_texte_ics(f'{projet.nom} — {titre}')}",
-                   f"URL:{url}", "TRANSP:TRANSPARENT", "END:VEVENT"]
+              f"X-WR-CALNAME:{texte_ics(f'SoluGation · {projet.nom}')}"]
+    for uid, quand, titre, url in evenements(projet):
+        if isinstance(quand, tuple):  # réunion : début et fin à l'heure près, en UTC
+            debut, fin = (q.astimezone(tz.utc).strftime("%Y%m%dT%H%M%SZ") for q in quand)
+            dates = [f"DTSTART:{debut}", f"DTEND:{fin}", "TRANSP:OPAQUE"]
+        else:  # échéance : journée entière
+            dates = [f"DTSTART;VALUE=DATE:{quand:%Y%m%d}", f"DTEND;VALUE=DATE:{quand + timedelta(days=1):%Y%m%d}", "TRANSP:TRANSPARENT"]
+        lignes += ["BEGIN:VEVENT", f"UID:{uid}@solugation", f"DTSTAMP:{horodatage}", *dates,
+                   f"SUMMARY:{texte_ics(f'{projet.nom} — {titre}')}", f"URL:{url}", "END:VEVENT"]
     lignes.append("END:VCALENDAR")
-    return "\r\n".join(_plier(l) for l in lignes) + "\r\n"
+    return "\r\n".join(plier_ics(l) for l in lignes) + "\r\n"

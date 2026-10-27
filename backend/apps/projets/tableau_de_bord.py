@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from apps.ai.models import AnalyseIA, ResultatAnalyseMesure
 from apps.audit.models import JournalAudit
@@ -10,7 +11,7 @@ from apps.core.api.acces import (peut_administrer_projet, peut_decider_projet, p
                                  peut_prononcer_homologation)
 from apps.core.models import StatutValidation
 from apps.referentiels.models import Mesure
-from apps.suivi.models import Tache
+from apps.suivi.models import Reunion, Tache
 
 from .models import DocumentAttendu, StatutMesure
 
@@ -79,6 +80,13 @@ def _pour_vous(projet, utilisateur, aujourd_hui):
         elements.append({"type": "decision", "id": None, "lien": "reglages", "echeance": projet.date_prochaine_revue, "en_retard": retard,
                          "titre": "Revue périodique en retard" if retard else "Revue périodique à préparer",
                          "detail": f"Prévue le {projet.date_prochaine_revue:%d/%m/%Y}"})
+    prochaine = (Reunion.objects.filter(projet=projet, statut=Reunion.Statut.PLANIFIEE, participants__utilisateur=utilisateur,
+                                        debut__gte=timezone.now(), debut__date__lte=aujourd_hui + timedelta(days=7)).order_by("debut").first())
+    if prochaine:
+        debut = timezone.localtime(prochaine.debut)
+        elements.append({"type": "reunion", "id": prochaine.id, "titre": prochaine.titre, "lien": f"reunions?reunion={prochaine.pk}",
+                         "detail": f"Réunion le {debut:%d/%m à %H:%M}{' · ' + prochaine.lieu if prochaine.lieu else ''}",
+                         "echeance": debut.date(), "en_retard": False})
     # En retard d'abord, puis par échéance (sans échéance en dernier).
     elements.sort(key=lambda e: (not e["en_retard"], e["echeance"] or date.max))
     return elements
