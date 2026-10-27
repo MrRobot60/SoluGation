@@ -7,6 +7,7 @@ from apps.ai.api import AnalyseViewSet, RecommandationViewSet, ResultatViewSet
 from apps.ebios.api import ROUTES as ROUTES_EBIOS
 from apps.rapports.api import RapportViewSet
 from apps.risques.api import DerogationViewSet, RisqueViewSet
+from apps.scans.api import ConstatViewSet, ImportViewSet
 from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
@@ -32,6 +33,8 @@ routeur.register("recommandations-ia", RecommandationViewSet, basename="recomman
 routeur.register("rapports", RapportViewSet, basename="rapport")
 routeur.register("risques-residuels", RisqueViewSet, basename="risque-residuel")
 routeur.register("derogations", DerogationViewSet, basename="derogation")
+routeur.register("imports-scans", ImportViewSet, basename="import-scan")
+routeur.register("constats-scans", ConstatViewSet, basename="constat-scan")
 for prefixe, vue, nom in ROUTES_EBIOS:
     routeur.register(prefixe, vue, basename=nom)
 routeur.register("taches", TacheViewSet, basename="tache")
