@@ -1,0 +1,73 @@
+# Configuration
+
+Toute la configuration passe par le fichier **`.env`** à la racine (copié depuis `.env.example`). Les variables déjà présentes dans l'environnement du conteneur priment sur le fichier. Après une modification : `docker compose up -d` (et non `restart`).
+
+## Django
+
+| Variable | Exemple | Rôle |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | 50 caractères aléatoires | Signature des sessions et jetons. Sert aussi à dériver la clé de chiffrement de la clé d'API de l'IA si `IA_CLE_CHIFFREMENT` est vide. **Ne la changez pas sans raison** : sessions déconnectées et clé d'IA à ressaisir. |
+| `DJANGO_DEBUG` | `True` en dev, `False` sinon | En `False` : HTTPS imposé, cookies sécurisés, HSTS. `creer_demo` refuse de tourner. |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,backend` | Noms d'hôte acceptés. Garder `backend` (l'interface y accède dans Docker). |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `http://localhost:5173` | Origine(s) de l'interface, schéma compris. |
+| `FRONTEND_URL` | `http://localhost:5173` | Adresse publique de l'interface, utilisée dans les liens des mails et des invitations. |
+
+## Base de données
+
+| Variable | Exemple | Rôle |
+|---|---|---|
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | `solugation` | Création de la base par le conteneur PostgreSQL. |
+| `DATABASE_URL` | `postgres://solugation:MOTDEPASSE@postgres:5432/solugation` | Connexion de l'application. Même mot de passe que ci-dessus. |
+
+## Stockage des fichiers (S3)
+
+Les documents, preuves, rapports de scan et PDF sont rangés dans un stockage **compatible S3** (SeaweedFS en local, ou tout service S3 : Scaleway, OVHcloud, MinIO, Garage…), sous un préfixe propre à chaque organisation, avec un nom de fichier régénéré.
+
+| Variable | Exemple | Rôle |
+|---|---|---|
+| `S3_ENDPOINT_URL` | `http://stockage:8333` | Adresse du service S3. |
+| `S3_ACCESS_KEY`, `S3_SECRET_KEY` | — | Identifiants (8 caractères minimum pour SeaweedFS). |
+| `S3_BUCKET` | `solugation` | Bucket, créé au démarrage s'il n'existe pas (versioning activé). |
+| `S3_REGION` | `fr-par` | Région (ignorée par SeaweedFS). |
+| `S3_USE_SSL` | `False` en local, `True` sinon | HTTPS vers le stockage. |
+| `S3_SSE` | vide, ou `AES256` | Chiffrement côté serveur du stockage (à activer chez un hébergeur). |
+| `UPLOAD_MAX_MO` | `50` | Taille maximale d'un fichier déposé. |
+| `SOLUGATION_DATA_DIR` | `/data` (fixé par Docker) | Dossier des sources de référentiels (`sources/`) et des copies licenciées (`private/`). |
+
+## Mails
+
+En développement, Docker Compose force l'envoi vers **Mailpit** (rien ne sort, consultation sur <http://localhost:8025>). Sans `EMAIL_HOST`, les mails sont affichés dans les journaux du serveur.
+
+| Variable | Exemple | Rôle |
+|---|---|---|
+| `DEFAULT_FROM_EMAIL` | `SoluGation <notifications@exemple.fr>` | Expéditeur, aussi organisateur des invitations d'agenda. |
+| `EMAIL_HOST`, `EMAIL_PORT` | `smtp.exemple.fr`, `587` | Relais SMTP. |
+| `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | — | Authentification au relais. |
+| `EMAIL_USE_TLS` | `True` | STARTTLS (obligatoire hors développement). |
+
+## Intelligence artificielle (facultative)
+
+Sans configuration, **aucune IA** : les fonctions IA sont masquées et tout fonctionne. Le plus simple est de configurer le fournisseur **depuis l'écran Administration** (il prime sur ce fichier). Détails, choix du fournisseur et confidentialité : [Intelligence artificielle](07-ia.md).
+
+| Variable | Exemple | Rôle |
+|---|---|---|
+| `IA_FOURNISSEUR` | `aucun` (défaut), `compatible`, `scaleway`, `mistral`, `factice` | `compatible` = toute API compatible OpenAI. `factice` = hors ligne, réservé au développement et aux tests. |
+| `IA_NOM` | `IA interne` | Nom affiché et journalisé. |
+| `IA_URL` | `https://api.fournisseur.eu/v1` | Adresse de l'API (`/chat/completions` y est ajouté). |
+| `IA_MODELE` | `mistral-small-latest` | Identifiant du modèle. |
+| `IA_CLE` | — | Clé d'API (facultative pour un modèle local). |
+| `IA_ZDR_CONFIRME` | `False` | `True` = l'administrateur accepte la responsabilité des conditions du fournisseur. Sans cela, rien n'est envoyé. |
+| `IA_CLE_CHIFFREMENT` | clé Fernet | Chiffre la clé d'API saisie à l'écran. Vide : dérivée de `DJANGO_SECRET_KEY`. Générer : `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `IA_AUTORISER_RESEAU_LOCAL` | `False` | `True` pour une IA sur le réseau local (Ollama, vLLM) : lève la protection SSRF qui refuse les adresses internes et le HTTP. |
+| `MISTRAL_API_KEY`, `MISTRAL_MODELE`, `MISTRAL_URL`, `MISTRAL_ZDR_CONFIRME` | — | Raccourci `IA_FOURNISSEUR=mistral`. |
+| `IA_SYNCHRONE` | `False` | Exécute les analyses dans la requête (tests uniquement). |
+
+## Démonstration (développement)
+
+| Variable | Rôle |
+|---|---|
+| `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Compte administrateur créé par `manage.py creer_demo`. |
+
+## Valeurs imposées par Docker Compose
+
+Le service `backend` fixe `SOLUGATION_DATA_DIR=/data`, `EMAIL_HOST=mail`, `EMAIL_PORT=1025`, `EMAIL_USE_TLS=False` (Mailpit). Le service `frontend` fixe `SOLUGATION_BACKEND=http://backend:8000` (relais de l'API par Vite) et `SOLUGATION_SCRUTATION=1` (détection des modifications de fichiers dans Docker).
