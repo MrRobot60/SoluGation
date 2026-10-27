@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.db.models import Q
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, serializers, status, viewsets
@@ -12,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit.models import JournalAudit
-from apps.core.api.acces import est_admin_organisation
+from apps.core.api.acces import est_admin_organisation, projets_accessibles
 from apps.core.api.journal import difference, journaliser
 from apps.core.api.permissions import AdminOrganisation, MembreOrganisation
 
@@ -48,9 +49,11 @@ class MoiSerializer(UtilisateurSerializer):
     est_admin_instance = serializers.BooleanField(source="is_superuser", read_only=True)
     lecture_seule = serializers.BooleanField(source="est_lecture_seule", read_only=True)
     ia_disponible = serializers.SerializerMethodField(help_text="IA configurée sur l'installation et activée pour l'organisation.")
+    visite_terminee = serializers.SerializerMethodField(help_text="Visite guidée terminée ou passée.")
 
     class Meta(UtilisateurSerializer.Meta):
-        fields = UtilisateurSerializer.Meta.fields + ["organisation", "est_admin", "est_admin_instance", "lecture_seule", "ia_disponible"]
+        fields = UtilisateurSerializer.Meta.fields + ["organisation", "est_admin", "est_admin_instance", "lecture_seule", "ia_disponible",
+                                                      "visite_terminee"]
         read_only_fields = fields
 
     def get_est_admin(self, obj) -> bool:
@@ -60,6 +63,10 @@ class MoiSerializer(UtilisateurSerializer):
         from apps.ai.provider import ia_disponible
 
         return bool(obj.organisation and obj.organisation.ia_activee and ia_disponible())
+
+
+    def get_visite_terminee(self, obj) -> bool:
+        return obj.visite_terminee_le is not None
 
 
 class ConnexionSerializer(serializers.Serializer):
@@ -111,6 +118,39 @@ class MoiView(APIView):
 
     def get(self, request):
         return Response(MoiSerializer(request.user).data)
+
+
+class VisiteSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["demarrer", "terminer", "revoir"])
+
+
+class VisiteView(APIView):
+    """Visite guidée. `demarrer` renvoie le projet d'exemple (créé au besoin ; un compte en lecture seule visite
+    un projet existant), `terminer` la marque finie ou passée, `revoir` la relance."""
+
+    permission_classes = [MembreOrganisation]
+    serializer_class = VisiteSerializer
+
+    def post(self, request):
+        from apps.projets.exemple import projet_exemple  # import tardif : projets dépend de comptes
+
+        action = VisiteSerializer(data=request.data)
+        action.is_valid(raise_exception=True)
+        utilisateur = request.user
+        match action.validated_data["action"]:
+            case "terminer":
+                utilisateur.visite_terminee_le = timezone.now()
+                utilisateur.save(update_fields=["visite_terminee_le"])
+            case "revoir":
+                utilisateur.visite_terminee_le = None
+                utilisateur.save(update_fields=["visite_terminee_le"])
+            case "demarrer":
+                if utilisateur.est_lecture_seule:
+                    projet = projets_accessibles(utilisateur).order_by("-modifie_le").first()
+                else:
+                    projet = projet_exemple(utilisateur)
+                return Response({"projet": projet and str(projet.id)})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class OrganisationView(APIView):

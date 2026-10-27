@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { Link, NavLink, useNavigate, useParams } from "react-router";
+import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router";
 
 import { useDeconnexion, useMoi, useProjets } from "../api/hooks";
+import { lienAide } from "../lib/aide";
 import { useTheme, type ChoixTheme } from "../lib/theme";
 import { Cloche } from "./Cloche";
 import {
-  IconeAuto, IconeBouclier, IconeCalendrier, IconeChevronHautBas, IconeCouches, IconeDocument, IconeLune,
+  IconeAide, IconeAuto, IconeBouclier, IconeCalendrier, IconeChevronHautBas, IconeCouches, IconeDocument, IconeLune,
   IconeMesures, IconePlus, IconeRapports, IconeRecherche, IconeReglages, IconeSoleil, IconeTableau, IconeTache,
 } from "./Icones";
 
@@ -130,6 +131,7 @@ function BarreLaterale({ projetId, referentiels }: { projetId: string; referenti
   const { data: moi } = useMoi();
   const deconnexion = useDeconnexion();
   const naviguer = useNavigate();
+  const { pathname } = useLocation();
   const base = `/projets/${projetId}`;
   return (
     <nav
@@ -170,6 +172,11 @@ function BarreLaterale({ projetId, referentiels }: { projetId: string; referenti
           className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium [&>svg]:text-texte-2 ${isActive ? "bg-remplissage font-semibold" : "hover:bg-remplissage"}`}>
           <IconeMesures />
           Bibliothèque
+        </NavLink>
+        <NavLink to={pathname.startsWith("/aide") ? "/aide" : lienAide(pathname)} title="Aide sur cette page" data-visite="aide"
+          className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium [&>svg]:text-texte-2 ${isActive ? "bg-remplissage font-semibold" : "hover:bg-remplissage"}`}>
+          <IconeAide />
+          Aide
         </NavLink>
         {(moi?.est_admin || moi?.est_admin_instance) && (
           <NavLink to="/administration"
@@ -238,10 +245,14 @@ function BarreOnglets({ projetId }: { projetId: string }) {
 
 /** Mobile : logo, sélecteur de projet (avec « Nouveau projet ») et notifications, sur toutes les pages. */
 function BarreMobile({ projetId }: { projetId: string }) {
+  const { pathname } = useLocation();
   return (
     <div className="mb-4 flex items-center gap-2.5 lg:hidden">
       <Logo />
       <div className="min-w-0 flex-1"><SelecteurProjet projetId={projetId} /></div>
+      <Link to={lienAide(pathname)} aria-label="Aide sur cette page" data-visite="aide" className="flex size-11 shrink-0 items-center justify-center rounded-full text-texte-2 hover:bg-remplissage">
+        <IconeAide taille={22} />
+      </Link>
       <Cloche />
     </div>
   );

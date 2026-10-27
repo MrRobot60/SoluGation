@@ -52,6 +52,7 @@ function Contenu({ d }: { d: Donnees }) {
         <div className="flex flex-col gap-1 lg:gap-1.5 lg:pt-2.5">
           <span className="text-[13px] font-semibold text-texte-2">
             {ETAT_HOMOLOGATION[p.statut] ?? p.statut_libelle} · {p.type_bien_libelle.toLowerCase()} · niveau {p.niveau_vise_libelle.toLowerCase()}
+            {p.exemple && <span className="ml-2 rounded-full bg-accent-doux px-2 py-0.5 text-[11px] text-accent-texte">Projet d'exemple</span>}
           </span>
           <h1 className="text-[34px] leading-[1.06] font-bold tracking-[-0.03em] lg:text-[clamp(32px,4.2vw,48px)] lg:tracking-[-0.035em]">
             {p.nom}

@@ -1,7 +1,7 @@
 import "./styles/theme.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 
@@ -22,6 +22,10 @@ import { PagePlanAction } from "./pages/PlanAction";
 import { PageNouveauProjet } from "./pages/NouveauProjet";
 import { PageTableauDeBord } from "./pages/TableauDeBord";
 
+// La documentation (et son moteur de rendu) ne se charge qu'à l'ouverture de l'Aide.
+const PageAide = lazy(() => import("./pages/Aide").then((m) => ({ default: m.PageAide })));
+const aide = <Suspense fallback={<div aria-busy="true" className="min-h-dvh" />}><PageAide /></Suspense>;
+
 const client = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: true } } });
 
 const routeur = createBrowserRouter([
@@ -33,6 +37,8 @@ const routeur = createBrowserRouter([
       { path: "/projets/nouveau", element: <PageNouveauProjet /> },
       { path: "/administration", element: <PageAdministration /> },
       { path: "/bibliotheque", element: <PageBibliotheque /> },
+      { path: "/aide", element: aide },
+      { path: "/aide/:page", element: aide },
       { path: "/projets/:projetId", element: <PageTableauDeBord /> },
       { path: "/projets/:projetId/documents", element: <PageDocuments /> },
       { path: "/projets/:projetId/mesures", element: <PageMesures /> },

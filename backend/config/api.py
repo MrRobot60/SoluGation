@@ -49,6 +49,7 @@ urlpatterns = [
     path("auth/connexion/", comptes.ConnexionView.as_view()),
     path("auth/deconnexion/", comptes.DeconnexionView.as_view()),
     path("auth/moi/", comptes.MoiView.as_view()),
+    path("auth/moi/visite/", comptes.VisiteView.as_view()),
     path("organisation/", comptes.OrganisationView.as_view()),
     path("administration/ia/", administration_ia.ConfigurationIAView.as_view()),
     path("administration/ia/tester/", administration_ia.TestIAView.as_view()),

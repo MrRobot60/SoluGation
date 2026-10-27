@@ -14,6 +14,7 @@ export interface Moi {
   est_admin_instance: boolean;
   lecture_seule: boolean;
   ia_disponible: boolean;
+  visite_terminee: boolean;
 }
 
 export interface EtatIA {
@@ -77,6 +78,7 @@ export interface TableauDeBord {
     peut_administrer: boolean;
     peut_prononcer: boolean;
     archive: boolean;
+    exemple: boolean;
     decision: "" | "homologation" | "provisoire" | "refus";
     decision_libelle: string;
     decision_par: string;

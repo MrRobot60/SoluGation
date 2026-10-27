@@ -132,7 +132,7 @@ def tableau_de_bord(projet, utilisateur, aujourd_hui=None):
             "peut_decider": peut_decider_projet(utilisateur, projet),
             "peut_administrer": peut_administrer_projet(utilisateur, projet, meme_archive=True),
             "peut_prononcer": peut_prononcer_homologation(utilisateur, projet),
-            "archive": projet.statut == "archive", "decision": projet.decision, "decision_libelle": projet.get_decision_display(),
+            "archive": projet.statut == "archive", "exemple": projet.exemple, "decision": projet.decision, "decision_libelle": projet.get_decision_display(),
             "date_decision": projet.date_decision, "date_fin_validite": projet.date_fin_validite,
             "decision_par": str(projet.decision_par or ""), "periodicite_revue_mois": projet.periodicite_revue_mois,
         },

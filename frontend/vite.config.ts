@@ -12,6 +12,8 @@ export default defineConfig({
     port: 5173,
     // Dans Docker (Colima), les événements fichiers ne traversent pas le montage : scrutation périodique.
     watch: process.env.SOLUGATION_SCRUTATION ? { usePolling: true, interval: 300 } : undefined,
+    // La rubrique Aide lit la documentation du dépôt (../docs, monté sous /docs dans Docker).
+    fs: { allow: [".", "../docs"] },
     proxy: {
       "/api": { target: backend, changeOrigin: true },
     },

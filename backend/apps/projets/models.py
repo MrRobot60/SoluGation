@@ -39,6 +39,7 @@ class Projet(TenantModel):
     statut = models.CharField(max_length=24, choices=Statut.choices, default=Statut.BROUILLON)
     referentiels = models.ManyToManyField("referentiels.Referentiel", through="ProjetReferentiel", related_name="projets")
     ebios_active = models.BooleanField("EBIOS RM activé", default=False)
+    exemple = models.BooleanField("projet d'exemple (visite guidée)", default=False, editable=False)
 
     # Activés par défaut, modifiables dans les paramètres du projet (pas dans l'assistant de création).
     notifications_actives = models.BooleanField(default=True)

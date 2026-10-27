@@ -3,6 +3,7 @@ import { Link, Navigate, Outlet, useLocation, useParams } from "react-router";
 import { ErreurApi } from "../api/client";
 import { useMoi, useProjets } from "../api/hooks";
 import { Disposition } from "../composants/Disposition";
+import { VisiteGuidee } from "../composants/VisiteGuidee";
 
 /** Routes protégées : sans session valide, retour à la connexion. */
 export function Protege() {
@@ -13,7 +14,12 @@ export function Protege() {
     return <Navigate to="/connexion" replace state={{ depuis: location.pathname }} />;
   }
   if (!data) return <p className="p-8 text-sm text-texte-2">Le serveur est injoignable.</p>;
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <VisiteGuidee />
+    </>
+  );
 }
 
 /** « / » : ouvre le premier projet accessible. */

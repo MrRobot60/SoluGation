@@ -47,6 +47,19 @@ export function useDeconnexion() {
   });
 }
 
+/** Visite guidée : `demarrer` renvoie le projet d'exemple (créé au besoin), `terminer` et `revoir` mettent à jour le compte. */
+export function useVisite() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (action: "demarrer" | "terminer" | "revoir") =>
+      api<{ projet: string | null } | undefined>("/api/auth/moi/visite/", { methode: "POST", corps: { action } }),
+    onSuccess: (_r, action) => {
+      if (action === "demarrer") void client.invalidateQueries({ queryKey: ["projets"] });
+      else void client.invalidateQueries({ queryKey: ["moi"] });
+    },
+  });
+}
+
 export function useReferentiels() {
   return useQuery({ queryKey: ["referentiels"], queryFn: () => api<Referentiel[]>("/api/referentiels/"), staleTime: 5 * 60_000 });
 }

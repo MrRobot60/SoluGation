@@ -180,3 +180,11 @@ export const IconeCoche = (p: P) => (
     <path d="M5 12.5l4.5 4.5L19 7.5" />
   </Base>
 );
+
+export const IconeAide = (p: P) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.7" />
+    <circle cx="12" cy="16.9" r="0.6" fill="currentColor" stroke="none" />
+  </Base>
+);

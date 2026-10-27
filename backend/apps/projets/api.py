@@ -77,7 +77,7 @@ class ProjetSerializer(serializers.ModelSerializer):
         model = Projet
         fields = ["id", "nom", "description", "type_bien", "niveau_vise", "statut", "referentiels", "ebios_active",
                   "notifications_actives", "calendrier_actif", "periodicite_revue_mois", "date_prochaine_revue",
-                  "decision", "decision_par", "date_decision", "date_fin_validite", "cree_par", "cree_le", "modifie_le",
+                  "exemple", "decision", "decision_par", "date_decision", "date_fin_validite", "cree_par", "cree_le", "modifie_le",
                   "acteurs", "generer_checklist"]
         # La décision d'homologation fera l'objet d'une action dédiée (autorité d'homologation), pas d'un PATCH.
         read_only_fields = ["decision", "decision_par", "date_decision", "date_fin_validite", "cree_par", "cree_le", "modifie_le"]

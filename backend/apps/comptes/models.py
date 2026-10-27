@@ -100,6 +100,7 @@ class Utilisateur(AbstractUser):
         limit_choices_to={"portee": Role.Portee.ORGANISATION},
     )
     fonction = models.CharField(max_length=150, blank=True)
+    visite_terminee_le = models.DateTimeField("visite guidée terminée le", null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

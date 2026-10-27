@@ -178,3 +178,29 @@
     }
   }
 }
+
+/* Rubrique Aide : rendu de la documentation Markdown. */
+@utility doc {
+  font-size: 15px;
+  line-height: 1.65;
+  & h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 18px; }
+  & h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 34px 0 10px; scroll-margin-top: 16px; }
+  & h3 { font-size: 17px; font-weight: 700; margin: 24px 0 8px; scroll-margin-top: 16px; }
+  & h4 { font-size: 15px; font-weight: 700; margin: 18px 0 6px; }
+  & p, & ul, & ol, & table, & .doc-code, & blockquote { margin: 0 0 14px; }
+  & ul { list-style: disc; padding-left: 22px; }
+  & ol { list-style: decimal; padding-left: 22px; }
+  & li { margin: 3px 0; }
+  & li > ul, & li > ol { margin: 4px 0 0; }
+  & a { color: var(--sg-accent-texte); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  & strong { font-weight: 650; }
+  & :not(pre) > code { font-size: 0.88em; background: var(--sg-remplissage); border-radius: 6px; padding: 1px 5px; overflow-wrap: anywhere; }
+  & pre { overflow-x: auto; background: var(--sg-groupe); box-shadow: var(--sg-groupe-ombre); border-radius: 14px; padding: 14px 16px; font-size: 13px; line-height: 1.55; }
+  & .doc-code { position: relative; }
+  & .doc-code button { position: absolute; top: 8px; right: 8px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--sg-remplissage); color: var(--sg-texte-2); }
+  & table { display: block; overflow-x: auto; border-collapse: collapse; font-size: 14px; max-width: 100%; }
+  & th, & td { border-bottom: 1px solid var(--sg-separateur); padding: 7px 12px 7px 0; text-align: left; vertical-align: top; }
+  & th { font-weight: 650; color: var(--sg-texte-2); font-size: 13px; }
+  & blockquote { border-left: 3px solid var(--sg-accent); padding: 2px 0 2px 14px; color: var(--sg-texte-2); }
+  & hr { border: 0; border-top: 1px solid var(--sg-separateur); margin: 24px 0; }
+}
