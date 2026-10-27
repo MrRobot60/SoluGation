@@ -439,3 +439,38 @@ export interface SuggestionEbios {
   statut_validation: "a_valider" | "valide" | "rejete";
   cree_le: string;
 }
+
+export type Severite = "info" | "faible" | "moyenne" | "haute" | "critique";
+
+export interface ImportScan {
+  id: string;
+  outil: "nessus" | "openvas" | "cyberwatch";
+  outil_libelle: string;
+  nom_original: string;
+  sha256: string;
+  date_scan: string | null;
+  etat: "en_attente" | "traite" | "echec";
+  erreur: string;
+  bilan: { total?: number; par_severite?: Record<Severite, number>; nouveaux?: number; deja_vus?: number; disparus?: number; precedent?: string | null };
+  depose_par_nom: string;
+  depose_le: string;
+}
+
+export interface ConstatScan {
+  id: string;
+  import_scan: string;
+  identifiant_outil: string;
+  titre: string;
+  severite: Severite;
+  cvss: string | null;
+  cve: string[];
+  hote: string;
+  port: number | null;
+  protocole: string;
+  description: string;
+  solution: string;
+  statut: "ouvert" | "traite" | "faux_positif" | "accepte";
+  commentaire_statut: string;
+  statut_par_nom: string;
+  a_une_tache: boolean;
+}

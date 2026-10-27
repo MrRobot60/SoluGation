@@ -6,7 +6,7 @@ import { useTheme, type ChoixTheme } from "../lib/theme";
 import { Cloche } from "./Cloche";
 import {
   IconeAuto, IconeBouclier, IconeCalendrier, IconeChevronHautBas, IconeCouches, IconeDocument, IconeLune,
-  IconeMesures, IconePlus, IconeRapports, IconeReglages, IconeSoleil, IconeTableau, IconeTache,
+  IconeMesures, IconePlus, IconeRapports, IconeRecherche, IconeReglages, IconeSoleil, IconeTableau, IconeTache,
 } from "./Icones";
 
 /** Icône SoluGation : symbole sur tuile claire (lisible en clair comme en sombre), coins façon iOS. */
@@ -30,6 +30,7 @@ const RUBRIQUES: Rubrique[] = [
   { chemin: "mesures", libelle: "Mesures", Icone: IconeMesures, mobile: "Mesures" },
   { chemin: "documents", libelle: "Documents", Icone: IconeDocument, mobile: "Documents" },
   { chemin: "plan-action", libelle: "Plan d'action", Icone: IconeTache, mobile: "Actions" },
+  { chemin: "scans", libelle: "Scans de vulnérabilités", Icone: IconeRecherche },
   { chemin: "risques", libelle: "Risques et dérogations", Icone: IconeBouclier },
   { chemin: "ebios", libelle: "EBIOS RM", Icone: IconeCouches },
   { chemin: "reunions", libelle: "Réunions", Icone: IconeCalendrier },

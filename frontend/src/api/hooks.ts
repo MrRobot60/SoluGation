@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, EtatIA, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Acteur, AnalyseIA, ConstatScan, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -505,5 +505,50 @@ export function useActionProjet(projetId: string, action: string) {
   return useMutation({
     mutationFn: (corps: Record<string, unknown> = {}) => api<Projet>(`/api/projets/${projetId}/${action}/`, { methode: "POST", corps }),
     onSuccess: () => invaliderProjet(client, projetId),
+  });
+}
+
+/* ---- Rapports de scan -------------------------------------------------------------------- */
+
+export function useImportsScans(projetId: string) {
+  return useQuery({ queryKey: ["scans", projetId, "imports"], queryFn: () => toutesLesPages<ImportScan>(`/api/imports-scans/?projet=${projetId}`), enabled: Boolean(projetId) });
+}
+
+export function useConstatsScan(projetId: string, importId: string | undefined) {
+  return useQuery({
+    queryKey: ["scans", projetId, "constats", importId],
+    queryFn: () => toutesLesPages<ConstatScan>(`/api/constats-scans/?projet=${projetId}&import_scan=${importId}`),
+    enabled: Boolean(projetId && importId),
+  });
+}
+
+function invaliderScans(client: ReturnType<typeof useQueryClient>, projetId: string) {
+  for (const cle of ["scans", "taches", "tableau-de-bord"]) client.invalidateQueries({ queryKey: [cle, projetId] });
+}
+
+export function useImporterScan(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fichier, surProgression }: { fichier: File; surProgression?: (p: number) => void }) =>
+      envoyerFichier<ImportScan>("/api/imports-scans/", { projet: projetId }, fichier, surProgression),
+    onSettled: () => invaliderScans(client, projetId),
+  });
+}
+
+export function useCreerTachesScan(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...corps }: { id: string; identifiants?: string[]; severite_min?: string }) =>
+      api<{ crees: number }>(`/api/imports-scans/${id}/creer-taches/`, { methode: "POST", corps }),
+    onSuccess: () => invaliderScans(client, projetId),
+  });
+}
+
+export function useStatuerConstat(projetId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...corps }: { id: string; statut: string; commentaire?: string; tous_les_hotes?: boolean }) =>
+      api<ConstatScan>(`/api/constats-scans/${id}/statuer/`, { methode: "POST", corps }),
+    onSuccess: () => invaliderScans(client, projetId),
   });
 }
