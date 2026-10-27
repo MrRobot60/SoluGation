@@ -82,7 +82,8 @@ def registre(a, b):
 
 def differentiel(texte_a, texte_b):
     """Différentiel mot à mot : [{type: egal | ajout | retrait, texte}], segments contigus fusionnés."""
-    mots_a, mots_b = re.findall(r"\S+|\s+", texte_a or ""), re.findall(r"\S+|\s+", texte_b or "")
+    # Unité = un mot et l'espace qui le suit : les segments retirés et ajoutés gardent leurs espaces (lisibles).
+    mots_a, mots_b = re.findall(r"\s*\S+\s*", texte_a or ""), re.findall(r"\s*\S+\s*", texte_b or "")
     segments = []
     for operation, i1, i2, j1, j2 in difflib.SequenceMatcher(a=mots_a, b=mots_b, autojunk=False).get_opcodes():
         if operation == "equal":

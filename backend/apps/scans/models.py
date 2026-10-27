@@ -25,6 +25,9 @@ class ImportScan(FichierModel, ProjetModel):
         verbose_name = "import de scan"
         ordering = ["-depose_le"]
 
+    def __str__(self):
+        return self.nom_original
+
 
 class ConstatScan(ProjetModel):
     class Severite(models.TextChoices):

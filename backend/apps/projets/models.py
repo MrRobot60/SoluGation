@@ -157,6 +157,9 @@ class StatutMesure(ProjetModel):
             models.UniqueConstraint(fields=["projet", "mesure"], name="statut_mesure_unique"),
         ]
 
+    def __str__(self):
+        return f"{self.mesure.identifiant} : {self.get_statut_display()}"
+
 
 class DocumentAttendu(ProjetModel):
     """Ligne de la checklist générée selon le contexte du projet."""

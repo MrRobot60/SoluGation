@@ -46,6 +46,9 @@ class AnalyseIA(ValidationHumaineModel, ProjetModel):
             raise ValidationError("L'IA est désactivée pour cette organisation.")
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return f"{self.get_type_analyse_display()} ({self.fournisseur})"
+
 
 class ResultatAnalyseMesure(ValidationHumaineModel, ProjetModel):
     """Couverture d'une mesure constatée par l'IA dans les documents."""
@@ -71,6 +74,9 @@ class ResultatAnalyseMesure(ValidationHumaineModel, ProjetModel):
             models.UniqueConstraint(fields=["analyse", "mesure", "document"], name="resultat_unique", nulls_distinct=False),
         ]
 
+    def __str__(self):
+        return f"{self.mesure.identifiant} : {self.get_couverture_display()}"
+
 
 class RecommandationIA(ValidationHumaineModel, ProjetModel):
     analyse = models.ForeignKey(AnalyseIA, on_delete=models.CASCADE, related_name="recommandations")
@@ -87,6 +93,9 @@ class RecommandationIA(ValidationHumaineModel, ProjetModel):
     class Meta(ValidationHumaineModel.Meta):
         verbose_name = "recommandation IA"
         verbose_name_plural = "recommandations IA"
+
+    def __str__(self):
+        return self.texte[:80]
 
 
 class ConfigurationIA(models.Model):
@@ -112,3 +121,6 @@ class ConfigurationIA(models.Model):
     @classmethod
     def courante(cls):
         return cls.objects.filter(instance=1).first()
+
+    def __str__(self):
+        return f"IA de l'installation : {self.nom or 'aucun fournisseur'}"

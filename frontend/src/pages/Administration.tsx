@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router";
 
 import { useEnregistrerIA, useEtatIA, useModifierOrganisation, useMoi, useTesterIA } from "../api/hooks";
 import type { EtatIA } from "../api/types";
@@ -176,6 +177,11 @@ export function PageAdministration() {
         {moi && !moi.est_admin && !moi.est_admin_instance && <p className="text-[15px] text-texte-2">Cette page est réservée aux administrateurs.</p>}
         {moi?.est_admin_instance && <SectionIA />}
         {moi?.est_admin && <SectionOrganisation />}
+        {moi?.est_admin && (
+          <Link to="/journal" className="self-start rounded-full bg-remplissage px-4 py-2 text-[14px] font-semibold text-accent-texte">
+            Journal d'audit de toute l'organisation
+          </Link>
+        )}
       </div>
     </Disposition>
   );

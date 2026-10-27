@@ -35,6 +35,9 @@ class AtelierEBIOS(ProjetModel):
 
 # --- Atelier 1 : cadrage et socle de sécurité ---------------------------------------------
 
+    def __str__(self):
+        return self.get_numero_display()
+
 
 class ValeurMetier(ProjetModel):
     class Nature(models.TextChoices):
@@ -75,6 +78,9 @@ class EvenementRedoute(ProjetModel):
     class Meta:
         verbose_name = "événement redouté"
 
+    def __str__(self):
+        return self.description[:80]
+
 
 class EcartSocle(ProjetModel):
     """Écart constaté au socle de sécurité (référentiels applicables du projet)."""
@@ -95,6 +101,9 @@ class EcartSocle(ProjetModel):
 
 
 # --- Atelier 2 : sources de risque ---------------------------------------------------------
+
+    def __str__(self):
+        return self.intitule
 
 
 class SourceRisque(ProjetModel):
@@ -141,6 +150,9 @@ class CoupleSROV(ProjetModel):
 
 
 # --- Atelier 3 : scénarios stratégiques ----------------------------------------------------
+
+    def __str__(self):
+        return f"{self.source} → {self.objectif}"
 
 
 class PartiePrenante(ProjetModel):
@@ -189,6 +201,9 @@ class CheminAttaque(ProjetModel):
     class Meta:
         verbose_name = "chemin d'attaque"
 
+    def __str__(self):
+        return self.description[:80]
+
 
 class MesureEcosysteme(ProjetModel):
     partie_prenante = models.ForeignKey(PartiePrenante, on_delete=models.CASCADE, related_name="mesures")
@@ -202,6 +217,9 @@ class MesureEcosysteme(ProjetModel):
 
 
 # --- Atelier 4 : scénarios opérationnels ---------------------------------------------------
+
+    def __str__(self):
+        return self.intitule
 
 
 class ScenarioOperationnel(ProjetModel):
@@ -270,6 +288,9 @@ class MesureTraitement(ProjetModel):
 
 # --- Propositions de l'IA (ateliers 1 à 4) ---------------------------------------------------
 
+    def __str__(self):
+        return self.intitule
+
 
 class SuggestionEBIOS(ValidationHumaineModel, ProjetModel):
     """Proposition de l'IA, à valider : acceptée (éventuellement corrigée), elle crée les objets de l'atelier."""
@@ -294,3 +315,6 @@ class SuggestionEBIOS(ValidationHumaineModel, ProjetModel):
         verbose_name = "proposition EBIOS RM de l'IA"
         verbose_name_plural = "propositions EBIOS RM de l'IA"
         ordering = ["atelier", "cree_le"]
+
+    def __str__(self):
+        return f"{self.get_type_objet_display()} (atelier {self.atelier})"

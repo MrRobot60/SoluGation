@@ -35,6 +35,7 @@ const RUBRIQUES: Rubrique[] = [
   { chemin: "ebios", libelle: "EBIOS RM", Icone: IconeCouches },
   { chemin: "reunions", libelle: "Réunions", Icone: IconeCalendrier },
   { chemin: "rapports", libelle: "Rapports", Icone: IconeRapports },
+  { chemin: "journal", libelle: "Journal d'audit", Icone: IconeDocument },
 ];
 
 function SelecteurProjet({ projetId }: { projetId: string }) {

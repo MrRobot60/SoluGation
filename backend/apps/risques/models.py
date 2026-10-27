@@ -87,3 +87,6 @@ class Derogation(ProjetModel):
                 | models.Q(decidee_par__isnull=False, date_decision__isnull=False),
             ),
         ]
+
+    def __str__(self):
+        return f"Dérogation : {self.motif[:70]}"

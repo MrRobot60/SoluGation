@@ -381,6 +381,14 @@ export interface EntreeJournal {
   action: string;
   objet_type: string;
   donnees: Record<string, unknown>;
+  action_libelle?: string;
+  objet_libelle?: string;
+  objet_repr?: string;
+  projet?: string | null;
+  projet_nom?: string;
+  adresse_ip?: string | null;
+  hash?: string;
+  hash_precedent?: string;
 }
 
 export interface NotificationApp {

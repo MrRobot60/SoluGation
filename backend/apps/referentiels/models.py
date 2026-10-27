@@ -104,3 +104,6 @@ class CorrespondanceMesure(HorodatageModel):
                 name="correspondance_pas_reflexive", condition=~models.Q(mesure_source=models.F("mesure_cible"))
             ),
         ]
+
+    def __str__(self):
+        return f"{self.mesure_source.identifiant} ↔ {self.mesure_cible.identifiant}"

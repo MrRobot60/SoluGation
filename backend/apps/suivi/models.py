@@ -102,6 +102,9 @@ class Commentaire(ProjetModel):
             ),
         ]
 
+    def __str__(self):
+        return self.texte[:80]
+
 
 class Reunion(ProjetModel):
     class Statut(models.TextChoices):
@@ -133,6 +136,9 @@ class Reunion(ProjetModel):
         constraints = [
             models.CheckConstraint(name="reunion_fin_apres_debut", condition=models.Q(fin__gt=models.F("debut"))),
         ]
+
+    def __str__(self):
+        return self.titre
 
 
 class Notification(TenantModel):

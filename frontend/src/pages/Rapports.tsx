@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router";
 
 import { useEditerRapport, useGenererRapport, useRapports, useTableauDeBord, useValiderRapport } from "../api/hooks";
 import type { Rapport, SectionRapport } from "../api/types";
+import { Comparaison } from "../composants/Comparaison";
 import { Disposition } from "../composants/Disposition";
 import { IconeEtincelle, IconeRapports } from "../composants/Icones";
 import { quand } from "../lib/format";
@@ -183,6 +184,17 @@ export function PageRapports() {
         {generer.error && <p role="alert" className="text-[13px] font-medium text-manquant-texte">{generer.error.message}</p>}
 
         {rapports.length > 1 && (
+          <div role="radiogroup" aria-label="Affichage" className="flex self-start rounded-full bg-remplissage p-[3px]">
+            {[{ cle: "", libelle: "Une version" }, { cle: "comparer", libelle: "Comparer deux versions" }].map((m) => (
+              <button key={m.cle} type="button" role="radio" aria-checked={(params.get("mode") ?? "") === m.cle}
+                onClick={() => setParams(m.cle ? { mode: m.cle } : choisi ? { version: choisi.id } : {})}
+                className={`rounded-full px-4 py-1.5 text-[13px] ${(params.get("mode") ?? "") === m.cle ? "bg-groupe font-semibold shadow-groupe" : "font-medium text-texte-2"}`}>{m.libelle}</button>
+            ))}
+          </div>
+        )}
+
+        {params.get("mode") === "comparer" && rapports.length > 1 ? <Comparaison rapports={rapports} /> : <>
+        {rapports.length > 1 && (
           <div role="tablist" aria-label="Versions du rapport" className="flex self-start overflow-x-auto rounded-full bg-remplissage p-[3px]">
             {rapports.map((r) => (
               <button key={r.id} type="button" role="tab" aria-selected={r.id === choisi?.id} onClick={() => setParams({ version: r.id })}
@@ -206,6 +218,7 @@ export function PageRapports() {
             que vous relisez et validez.
           </p>
         )}
+        </>}
       </div>
     </Disposition>
   );
