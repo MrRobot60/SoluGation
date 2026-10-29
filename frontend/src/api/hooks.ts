@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Acteur, AnalyseIA, ConstatScan, FicheMesure, Reunion, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Compte, NatureLien, Acteur, AnalyseIA, ConstatScan, FicheMesure, Reunion, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -44,6 +44,54 @@ export function useDeconnexion() {
   return useMutation({
     mutationFn: () => api<void>("/api/auth/deconnexion/", { methode: "POST" }),
     onSettled: () => client.clear(),
+  });
+}
+
+export function useComptes() {
+  return useQuery({ queryKey: ["comptes"], queryFn: () => api<Compte[]>("/api/administration/comptes/") });
+}
+
+/** Inviter (sans `id`) ou modifier un compte de l'organisation. */
+export function useEnregistrerCompte() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...corps }: Partial<Compte> & { id?: string }) =>
+      api<Compte>(id ? `/api/administration/comptes/${id}/` : "/api/administration/comptes/", { methode: id ? "PATCH" : "POST", corps }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["comptes"] });
+      void client.invalidateQueries({ queryKey: ["utilisateurs"] });
+    },
+  });
+}
+
+export function useRenvoyerInvitation() {
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/api/administration/comptes/${id}/renvoyer-invitation/`, { methode: "POST" }),
+  });
+}
+
+export function useMotDePasseOublie() {
+  return useMutation({
+    mutationFn: (email: string) => api<void>("/api/auth/mot-de-passe-oublie/", { methode: "POST", corps: { email } }),
+  });
+}
+
+type Lien = { nature: NatureLien; uid: string; jeton: string };
+
+/** Lien reçu par mail : vérification (sans mot de passe), puis enregistrement du mot de passe. */
+export function useVerifierLien(lien: Lien | null) {
+  return useQuery({
+    queryKey: ["lien", lien?.nature, lien?.uid, lien?.jeton],
+    queryFn: () => api<{ email: string; prenom: string; organisation: string }>("/api/auth/lien/", { methode: "POST", corps: lien }),
+    enabled: !!lien,
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export function useDefinirMotDePasse() {
+  return useMutation({
+    mutationFn: (corps: Lien & { password: string }) => api<void>("/api/auth/lien/", { methode: "POST", corps }),
   });
 }
 

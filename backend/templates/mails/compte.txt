@@ -1,0 +1,11 @@
+{% autoescape off %}{{ titre }}
+
+{{ message }}
+{% if lien %}
+{{ bouton }} : {{ lien }}
+{% endif %}{% if note %}
+{{ note }}
+{% endif %}
+--
+Message automatique de SoluGation concernant votre compte.
+{% endautoescape %}

@@ -12,7 +12,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec backen
 | Commande | Effet |
 |---|---|
 | `creer_organisation --nom NOM --email EMAIL [--secteur public\|prive] [--prenom P] [--nom-famille N] [--admin-installation]` | Crée une organisation et son premier administrateur. `--admin-installation` : administrateur de toute l'installation (IA, admin Django). |
-| `creer_utilisateur --organisation SLUG --email EMAIL [--role admin\|membre\|auditeur] [--prenom P] [--nom-famille N] [--fonction F]` | Ajoute un compte. `auditeur` = lecture seule partout. |
+| `creer_utilisateur --organisation SLUG --email EMAIL [--role admin\|membre\|auditeur] [--prenom P] [--nom-famille N] [--fonction F]` | Ajoute un compte avec son mot de passe (installation automatisée). Au quotidien, préférez l'invitation depuis **Administration → Comptes**. `auditeur` = lecture seule partout. |
 | `createsuperuser` | Commande Django standard : un compte d'administration technique, sans organisation (accès à `/admin` seulement). |
 | `changepassword EMAIL` | Change le mot de passe d'un compte. |
 | `creer_demo` | Données de démonstration (développement uniquement). |

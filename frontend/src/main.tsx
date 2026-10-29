@@ -21,6 +21,7 @@ import { PageReunions } from "./pages/Reunions";
 import { PageRisques } from "./pages/Risques";
 import { PageScans } from "./pages/Scans";
 import { PageConnexion } from "./pages/Connexion";
+import { PageDefinirMotDePasse, PageMotDePasseOublie } from "./pages/MotDePasse";
 import { PageDocuments } from "./pages/Documents";
 import { PageMesures } from "./pages/Mesures";
 import { PagePlanAction } from "./pages/PlanAction";
@@ -35,6 +36,9 @@ const client = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000,
 
 const routeur = createBrowserRouter([
   { path: "/connexion", element: <PageConnexion /> },
+  { path: "/mot-de-passe-oublie", element: <PageMotDePasseOublie /> },
+  { path: "/mot-de-passe/nouveau", element: <PageDefinirMotDePasse nature="reinitialisation" /> },
+  { path: "/invitation", element: <PageDefinirMotDePasse nature="invitation" /> },
   {
     element: <Protege />,
     children: [

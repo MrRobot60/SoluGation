@@ -6,6 +6,8 @@ Chaque écran, ce qu'il montre et ce qu'on peut y faire. Les droits nécessaires
 
 Adresse email et mot de passe. Après plusieurs échecs, les tentatives sont freinées (10 par minute). La session dure deux semaines (valeur par défaut de Django) ; **Quitter** (bas de la barre latérale) déconnecte.
 
+**Mot de passe oublié ?** (sous le bouton de connexion) : saisissez votre email, vous recevez un lien valable **1 heure**, utilisable **une seule fois**. La réponse affichée est toujours la même, que le compte existe ou non (aucune information n'est donnée à un tiers). Après le changement, un mail de confirmation est envoyé et **toutes vos autres sessions sont fermées**.
+
 ## Tableau de bord
 
 | Bloc | Contenu |
@@ -106,9 +108,24 @@ Référentiels disponibles (communs et copies privées de l'organisation), mesur
 
 ## Administration
 
-- **Intelligence artificielle** (administrateur de l'installation) : voir [IA](07-ia.md).
+- **Comptes** (administrateur d'organisation) : voir ci-dessous.
 - **Organisation** (administrateur d'organisation) : autoriser ou non l'IA pour l'organisation.
+- **Intelligence artificielle** (administrateur de l'installation) : voir [IA](07-ia.md).
 - Lien vers le **journal d'audit** de toute l'organisation.
+
+### Comptes
+
+| Action | Comment | Effet |
+|---|---|---|
+| **Inviter une personne** | Email, prénom, nom, fonction, rôle (membre, administrateur, auditeur) | Mail d'invitation ; la personne choisit son mot de passe (lien valable **7 jours**, une seule fois). État : *Invitation envoyée*. |
+| **Renvoyer l'invitation** | Sur un compte *Invitation envoyée* | Nouveau lien ; **le précédent ne fonctionne plus**. |
+| **Changer le rôle** | Liste déroulante de la ligne | Immédiat (un auditeur passe en lecture seule partout). |
+| **Désactiver** | Deux clics (confirmation) | Connexion impossible, **sessions ouvertes coupées**, liens en cours invalidés. Le compte et son historique sont conservés (jamais de suppression : le journal d'audit les cite). |
+| **Réactiver** | « Afficher les comptes désactivés », puis **Réactiver** | Le compte retrouve ses accès. |
+
+Garde-fous : on ne peut ni se désactiver soi-même, ni retirer son propre rôle d'administrateur ; l'organisation garde toujours **au moins un administrateur actif** ; seul un administrateur de l'installation modifie le compte d'un autre administrateur de l'installation ; l'email d'un compte ne se modifie pas (invitez la nouvelle adresse). Chaque action est tracée au journal d'audit.
+
+Les **projets** se partagent ensuite depuis leurs réglages (**Réglages du projet → Acteurs**) : un compte ne voit que les projets dont il est acteur (sauf administrateur).
 
 ## Aide et visite guidée
 

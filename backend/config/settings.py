@@ -96,6 +96,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# Liens d'invitation et de réinitialisation (apps/comptes/mots_de_passe.py) : borne haute commune (7 jours) ;
+# la réinitialisation est limitée à 1 heure par son propre générateur.
+PASSWORD_RESET_TIMEOUT = 7 * 24 * 60 * 60
+MAILS_COMPTES_SYNCHRONES = env.bool("MAILS_COMPTES_SYNCHRONES", default=False)  # tests uniquement
+
 LANGUAGE_CODE = "fr-fr"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
@@ -103,6 +108,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+if not STATIC_ROOT.is_dir():  # dev et tests : pas de fichiers compilés (collectstatic se fait dans l'image)
+    MIDDLEWARE.remove("whitenoise.middleware.WhiteNoiseMiddleware")
 
 # Stockage S3-compatible (SeaweedFS en local, Scaleway en prod). Un préfixe par organisation,
 # voir apps.core.models.chemin_fichier.
@@ -173,7 +180,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.api.base.gestionnaire_exceptions",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"connexion": "10/min"},
+    "DEFAULT_THROTTLE_RATES": {"connexion": "10/min", "mot_de_passe": "5/hour", "mot_de_passe_lien": "30/hour"},
     "NUM_PROXIES": 1 if SOLUGATION_PROXY_DE_CONFIANCE else None,
 }
 

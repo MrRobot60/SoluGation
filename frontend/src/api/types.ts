@@ -520,3 +520,24 @@ export interface Reunion {
   compte_rendu_valide_le: string | null;
   nb_actions: number;
 }
+
+export type RoleCompte = "admin" | "membre" | "auditeur";
+
+export interface Compte {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  nom_complet: string;
+  fonction: string;
+  role: RoleCompte;
+  role_libelle: string;
+  is_active: boolean;
+  etat: "actif" | "invite" | "desactive";
+  est_moi: boolean;
+  last_login: string | null;
+  date_joined: string;
+  is_superuser: boolean;
+}
+
+export type NatureLien = "invitation" | "reinitialisation";

@@ -6,7 +6,6 @@
 
 | Sujet | Pourquoi | À faire |
 |---|---|---|
-| Comptes | Pas d'écran de gestion des utilisateurs, ni de réinitialisation de mot de passe par mail | Écran d'administration des comptes, mot de passe oublié, invitation par mail |
 | Licence | Aucune licence = personne n'a le droit d'utiliser le code | Choisir (recommandé : AGPL-3.0 + licence commerciale + CLA) et ajouter `LICENSE` |
 | Fichiers du dépôt | Attendus de tout projet open source | `SECURITY.md` (contact de signalement), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, modèles de tickets |
 | Historique Git | Un secret commité par erreur reste dans l'historique ; l'email d'auteur devient public | Scan `gitleaks` de tout l'historique ; choisir l'email d'auteur ; vérifier qu'aucun texte ISO ni PDF source n'a été commité |
@@ -20,6 +19,7 @@
 | Supervision | Alerte externe si le site ne répond plus ; exporter les journaux |
 | Poids de l'interface | Découper le paquet JavaScript principal (environ 620 ko) |
 | Double authentification | TOTP pour tous, obligatoire pour les administrateurs |
+| Changer son mot de passe une fois connecté | Écran « Mon compte » (aujourd'hui : « Mot de passe oublié ») |
 | Durée de session | Réduire (8 h) et déconnexion après inactivité |
 | Base de données | Rôle PostgreSQL applicatif qui n'est pas propriétaire des tables (le trigger du journal ne peut alors plus être désactivé par l'application) |
 | Chiffrement au repos | Documenté mais à vérifier en conditions réelles (`S3_SSE`, disques chiffrés) |
@@ -51,6 +51,7 @@
 | Sauvegardes et restauration (base + fichiers, empreintes, rotation), testées | [Production, sauvegardes](15-production.md#6-sauvegardes) |
 | Service de tâches : analyses IA hors du serveur web, rappels planifiés sans cron | `executer_taches` |
 | Aucune ressource tierce (police embarquée), CSP stricte | [Sécurité](10-securite.md) |
+| Gestion des comptes : invitation par mail, rôle, désactivation, mot de passe oublié | [Guide, comptes](06-guide-utilisateur.md#comptes) |
 
 ## Juridique
 

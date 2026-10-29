@@ -12,6 +12,9 @@
 - Mots de passe : 12 caractères minimum, refus des mots de passe courants ou trop proches de l'identifiant ; stockés hachés (algorithme Django, PBKDF2 par défaut).
 - Session par cookie `HttpOnly`, `SameSite=Lax`, `Secure` hors développement ; protection CSRF.
 - Tentatives de connexion freinées (10 par minute).
+- **Invitation et mot de passe oublié** : liens à usage unique, signés, sans stockage, invalidés dès que le mot de passe change, que le compte se connecte ou est désactivé (1 heure pour une réinitialisation, 7 jours pour une invitation). Le jeton voyage dans le fragment de l'adresse (`#…`) : il n'est jamais transmis au serveur ni écrit dans les journaux du proxy.
+- **Aucune énumération** des comptes : « mot de passe oublié » répond toujours la même chose, dans le même délai (envoi du mail en arrière-plan), et est limité à 5 demandes par heure et par adresse IP.
+- Changer de mot de passe ferme toutes les autres sessions ; un mail de confirmation est envoyé. Désactiver un compte coupe immédiatement ses sessions.
 
 ## Fichiers déposés
 

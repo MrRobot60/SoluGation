@@ -10,6 +10,8 @@ from apps.risques.api import DerogationViewSet, RisqueViewSet
 from apps.scans.api import ConstatViewSet, ImportViewSet
 from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
+from apps.comptes import gestion as gestion_comptes
+from apps.comptes import mots_de_passe
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
 from apps.projets import api as projets
 from apps.referentiels.api import CorrespondanceViewSet, MesureViewSet, ReferentielViewSet
@@ -18,6 +20,7 @@ from apps.suivi.api import CommentaireViewSet, NotificationViewSet, ReunionViewS
 routeur = DefaultRouter()
 routeur.register("utilisateurs", comptes.UtilisateurViewSet, basename="utilisateur")
 routeur.register("roles", comptes.RoleViewSet, basename="role")
+routeur.register("administration/comptes", gestion_comptes.CompteViewSet, basename="compte")
 routeur.register("referentiels", ReferentielViewSet, basename="referentiel")
 routeur.register("mesures", MesureViewSet, basename="mesure")
 routeur.register("correspondances", CorrespondanceViewSet, basename="correspondance")
@@ -50,6 +53,8 @@ urlpatterns = [
     path("auth/deconnexion/", comptes.DeconnexionView.as_view()),
     path("auth/moi/", comptes.MoiView.as_view()),
     path("auth/moi/visite/", comptes.VisiteView.as_view()),
+    path("auth/mot-de-passe-oublie/", mots_de_passe.MotDePasseOublieView.as_view()),
+    path("auth/lien/", mots_de_passe.LienView.as_view()),
     path("organisation/", comptes.OrganisationView.as_view()),
     path("administration/ia/", administration_ia.ConfigurationIAView.as_view()),
     path("administration/ia/tester/", administration_ia.TestIAView.as_view()),

@@ -42,10 +42,13 @@ curl -s http://localhost:8000/api/sante/  # répond {"statut": "ok", …} si l'A
 
 | Symptôme | Solution |
 |---|---|
-| Mot de passe oublié | `docker compose exec backend python manage.py changepassword email@exemple.fr` (pas encore de réinitialisation par mail) |
+| Mot de passe oublié | **Mot de passe oublié ?** sur la page de connexion. Sans mail possible : `docker compose exec backend python manage.py changepassword email@exemple.fr` |
+| Mail d'invitation ou de réinitialisation non reçu | Vérifier les indésirables ; en dev, Mailpit (<http://localhost:8025>) ; vérifier `EMAIL_HOST` et `FRONTEND_URL` (adresse des liens). L'administrateur peut **renvoyer l'invitation** |
+| « Ce lien n'est plus valable » | Lien déjà utilisé, expiré (1 h pour une réinitialisation, 7 jours pour une invitation), remplacé par un renvoi, ou compte désactivé : en demander un nouveau |
+| Trop de demandes de lien | Limite de 5 demandes par heure et par adresse IP : patienter |
 | « Le serveur est injoignable » sur l'interface | L'API ne répond pas : voir les journaux du `backend` |
 | Connecté mais aucun projet | Vous n'êtes acteur d'aucun projet : créez-en un, ou demandez à être ajouté (Réglages du projet → Acteurs) |
-| Pas d'entrée « Administration » | Réservée aux administrateurs d'organisation et de l'installation (`creer_organisation --admin-installation`, ou l'admin Django) |
+| Pas d'entrée « Administration » | Réservée aux administrateurs d'organisation et de l'installation (un administrateur change votre rôle dans **Administration → Comptes**) |
 | Trop de tentatives de connexion | Attendre une minute (limite de 10 par minute) |
 
 ## Référentiels

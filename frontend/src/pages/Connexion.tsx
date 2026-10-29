@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 
 import { useConnexion, useMoi } from "../api/hooks";
 import { Logo } from "../composants/Disposition";
@@ -8,8 +8,9 @@ export function PageConnexion() {
   const { data: moi } = useMoi();
   const connexion = useConnexion();
   const naviguer = useNavigate();
-  const retour = (useLocation().state as { depuis?: string } | null)?.depuis ?? "/";
-  const [email, setEmail] = useState("");
+  const etat = useLocation().state as { depuis?: string; email?: string } | null;
+  const retour = etat?.depuis ?? "/";
+  const [email, setEmail] = useState(etat?.email ?? "");
   const [motDePasse, setMotDePasse] = useState("");
 
   if (moi) return <Navigate to={retour} replace />;
@@ -67,6 +68,7 @@ export function PageConnexion() {
         >
           {connexion.isPending ? "Connexion…" : "Se connecter"}
         </button>
+        <Link to="/mot-de-passe-oublie" className="text-center text-sm font-semibold text-accent-texte">Mot de passe oublié ?</Link>
       </form>
     </main>
   );

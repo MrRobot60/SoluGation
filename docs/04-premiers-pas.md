@@ -10,14 +10,13 @@ Vérifiez qu'ils sont importés : menu **Bibliothèque** (barre latérale). Vous
 
 Une installation peut servir **plusieurs organisations**, totalement cloisonnées (un cabinet et ses clients, plusieurs directions). Chaque compte appartient à une seule organisation.
 
-```bash
-# Première organisation et son administrateur (qui administre aussi l'installation)
-docker compose exec backend python manage.py creer_organisation --nom "Ma collectivité" --email admin@exemple.fr --admin-installation
+La première organisation et son administrateur se créent en ligne de commande (il n'y a encore personne pour se connecter) :
 
-# Collègues
-docker compose exec backend python manage.py creer_utilisateur --organisation ma-collectivite --email rssi@exemple.fr --prenom Camille --nom-famille Martin --fonction RSSI
-docker compose exec backend python manage.py creer_utilisateur --organisation ma-collectivite --email audit@exemple.fr --role auditeur
+```bash
+docker compose exec backend python manage.py creer_organisation --nom "Ma collectivité" --email admin@exemple.fr --admin-installation
 ```
+
+Les collègues s'invitent ensuite **depuis l'interface** : **Administration → Comptes → Inviter une personne** (email, nom, fonction, rôle). Chacun reçoit un mail et choisit lui-même son mot de passe (voir [comptes](06-guide-utilisateur.md#comptes)). En ligne de commande, `creer_utilisateur` reste disponible pour une installation automatisée (voir [commandes](11-commandes.md)).
 
 Rôles d'**organisation** :
 
@@ -28,8 +27,6 @@ Rôles d'**organisation** :
 | `auditeur` | Lecture seule partout où il est acteur. |
 
 Les rôles **dans un projet** (chef de projet, RSSI, autorité d'homologation, contributeur, auditeur) se donnent dans le projet : voir [rôles et droits](09-roles-et-droits.md).
-
-> Il n'existe pas encore d'écran de gestion des comptes : utilisez ces commandes, ou l'admin Django (<http://localhost:8000/admin/>) pour désactiver un compte ou changer son rôle.
 
 ## 3. (Facultatif) L'IA
 
