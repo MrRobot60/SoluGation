@@ -24,7 +24,7 @@ export function Synthese({ d }: { d: TableauDeBord }) {
   return (
     <section
       aria-label="Synthèse"
-      className="verre relative -mt-[132px] grid grid-cols-2 rounded-[26px] lg:-mt-[168px] lg:flex lg:rounded-verre [&>*:nth-child(odd)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*]:border-b-0! lg:[&>*:nth-child(odd)]:border-r-0!"
+      className="verre relative -mt-[76px] grid grid-cols-2 rounded-[26px] lg:-mt-[88px] lg:flex lg:rounded-verre [&>*:nth-child(odd)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*]:border-b-0! lg:[&>*:nth-child(odd)]:border-r-0!"
     >
       <Chiffre libelle="Évaluation" valeur={pourcentage(evaluation.evaluees, evaluation.total)}
         note={`${evaluation.evaluees} mesures sur ${evaluation.total}`} />
