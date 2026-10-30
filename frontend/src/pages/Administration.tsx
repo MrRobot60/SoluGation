@@ -1,8 +1,11 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 
-import { useComptes, useEnregistrerCompte, useEnregistrerIA, useEtatIA, useModifierOrganisation, useMoi, useRenvoyerInvitation, useTesterIA } from "../api/hooks";
-import type { Compte, EtatIA, RoleCompte } from "../api/types";
+import {
+  useComptes, useEnregistrerCompte, useEnregistrerIA, useEtatIA, useModifierOrganisation, useModifierSecuriteInstance, useMoi,
+  useReinitialiserDoubleAuth, useRenvoyerInvitation, useSecuriteInstance, useTesterIA,
+} from "../api/hooks";
+import type { Compte, EtatIA, PolitiqueDoubleAuth, RoleCompte } from "../api/types";
 import { Disposition } from "../composants/Disposition";
 import { IconeEtincelle } from "../composants/Icones";
 import { quand } from "../lib/format";
@@ -204,6 +207,7 @@ function FormulaireInvitation({ fermer }: { fermer: () => void }) {
 function LigneCompte({ c, moiInstallation }: { c: Compte; moiInstallation: boolean }) {
   const enregistrer = useEnregistrerCompte();
   const renvoyer = useRenvoyerInvitation();
+  const reinitialiser = useReinitialiserDoubleAuth();
   const [confirmer, setConfirmer] = useState(false);
   useEffect(() => {
     if (!confirmer) return;
@@ -212,7 +216,7 @@ function LigneCompte({ c, moiInstallation }: { c: Compte; moiInstallation: boole
   }, [confirmer]);
   const verrouille = c.est_moi || (c.is_superuser && !moiInstallation);
   const etat = ETATS[c.etat];
-  const erreur = enregistrer.error ?? renvoyer.error;
+  const erreur = enregistrer.error ?? renvoyer.error ?? reinitialiser.error;
   return (
     <li className="flex flex-col gap-2 border-b border-separateur py-3 last:border-b-0">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -229,6 +233,11 @@ function LigneCompte({ c, moiInstallation }: { c: Compte; moiInstallation: boole
           </span>
         </span>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${etat.classe}`}><span aria-hidden="true">{etat.symbole} </span>{etat.libelle}</span>
+        {c.double_auth_active && (
+          <span title="Double authentification active" className="rounded-full bg-accent-doux px-2.5 py-1 text-xs font-semibold text-accent-texte">
+            <span aria-hidden="true">✓ </span>Double auth.
+          </span>
+        )}
         <select aria-label={`Rôle de ${c.email}`} value={c.role} disabled={verrouille || !c.is_active || enregistrer.isPending}
           onChange={(ev) => enregistrer.mutate({ id: c.id, role: ev.target.value as RoleCompte })}
           className="rounded-full bg-remplissage px-3 py-1.5 text-[13px] font-medium outline-none disabled:opacity-60">
@@ -240,6 +249,13 @@ function LigneCompte({ c, moiInstallation }: { c: Compte; moiInstallation: boole
           {c.etat === "invite" && (
             <button type="button" disabled={renvoyer.isPending} onClick={() => renvoyer.mutate(c.id)} className="text-accent-texte disabled:opacity-60">
               {renvoyer.isSuccess ? "Invitation renvoyée" : "Renvoyer l'invitation"}
+            </button>
+          )}
+          {c.double_auth_active && (
+            <button type="button" disabled={reinitialiser.isPending}
+              onClick={() => window.confirm(`Réinitialiser la double authentification de ${c.nom_complet} ? À sa prochaine connexion, seul le mot de passe sera demandé, puis la personne la reconfigurera.`) && reinitialiser.mutate(c.id)}
+              className="text-accent-texte disabled:opacity-60">
+              Réinitialiser la double authentification
             </button>
           )}
           {c.is_active ? (
@@ -306,6 +322,54 @@ function SectionComptes() {
   );
 }
 
+const AIDE_POLITIQUE: Record<PolitiqueDoubleAuth, string> = {
+  desactivee: "Personne ne peut l'activer ; elle n'est pas demandée à la connexion.",
+  facultative: "Chacun peut l'activer depuis Mon compte.",
+  administrateurs: "Imposée aux administrateurs d'organisation et de l'installation ; facultative pour les autres.",
+  tous: "Imposée à tous les comptes. Ceux qui ne l'ont pas encore sont dirigés vers Mon compte pour l'activer.",
+};
+
+function SectionSecurite() {
+  const { data: s } = useSecuriteInstance();
+  const modifier = useModifierSecuriteInstance();
+  if (!s) return <div aria-busy="true" className="h-60 animate-pulse rounded-groupe bg-remplissage" />;
+  const choisir = (valeur: PolitiqueDoubleAuth | "") => {
+    const exigeMoi = valeur === "tous" || valeur === "administrateurs";
+    if (exigeMoi && !window.confirm("Cette politique s'applique aussi à vous : sans double authentification active, vous serez dirigé vers Mon compte pour l'activer. Continuer ?")) return;
+    modifier.mutate(valeur);
+  };
+  return (
+    <section aria-labelledby="titre-securite" className="flex flex-col gap-4 rounded-groupe bg-groupe px-4 py-5 shadow-groupe sm:px-6">
+      <div className="flex flex-col gap-1">
+        <h2 id="titre-securite" className="text-[20px] font-bold">Double authentification</h2>
+        <p className="text-[14px] text-texte-2">
+          Réglage de toute l'installation (toutes les organisations). Code à 6 chiffres d'une application d'authentification, en plus du mot de passe.
+          Il prime sur le fichier de configuration (<code className="text-[13px]">DOUBLE_AUTH_POLITIQUE={s.fichier}</code>).
+        </p>
+      </div>
+      <fieldset className="flex flex-col gap-2" disabled={modifier.isPending}>
+        <legend className="sr-only">Politique</legend>
+        {s.choix.map((c) => (
+          <label key={c.cle} className="flex items-start gap-3 text-[15px]">
+            <input type="radio" name="politique-2fa" checked={s.politique === c.cle} onChange={() => choisir(c.cle)} className="mt-1 accent-[var(--sg-accent)]" />
+            <span className="flex flex-col">
+              <span className="font-medium">{c.libelle}</span>
+              <span className="text-[13px] text-texte-2">{AIDE_POLITIQUE[c.cle]}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      {s.ecran && (
+        <button type="button" onClick={() => choisir("")} className="self-start text-[13px] font-semibold text-accent-texte">
+          Revenir à la valeur du fichier de configuration
+        </button>
+      )}
+      {modifier.error && <p role="alert" className="text-[13px] font-medium text-manquant-texte">{modifier.error.message}</p>}
+      {s.modifie_le && s.ecran && <p className="text-xs text-texte-3">Modifié par {s.modifie_par} {quand(s.modifie_le)}. Chaque changement est tracé au journal d'audit.</p>}
+    </section>
+  );
+}
+
 function SectionOrganisation() {
   const { data: moi } = useMoi();
   const modifier = useModifierOrganisation();
@@ -341,6 +405,7 @@ export function PageAdministration() {
         {moi && !moi.est_admin && !moi.est_admin_instance && <p className="text-[15px] text-texte-2">Cette page est réservée aux administrateurs.</p>}
         {moi?.est_admin && <SectionComptes />}
         {moi?.est_admin && <SectionOrganisation />}
+        {moi?.est_admin_instance && <SectionSecurite />}
         {moi?.est_admin_instance && <SectionIA />}
         {moi?.est_admin && (
           <Link to="/journal" className="self-start rounded-full bg-remplissage px-4 py-2 text-[14px] font-semibold text-accent-texte">

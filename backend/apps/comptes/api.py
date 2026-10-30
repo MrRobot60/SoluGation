@@ -1,5 +1,7 @@
 """Authentification par session Django (cookie HttpOnly + CSRF), adaptée à un frontend servi sur le même domaine."""
 
+import time
+
 from django.contrib.auth import authenticate, login, logout, password_validation, update_session_auth_hash
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
@@ -18,6 +20,7 @@ from apps.core.api.acces import est_admin_organisation, projets_accessibles
 from apps.core.api.journal import difference, journaliser
 from apps.core.api.permissions import AdminOrganisation, MembreOrganisation
 
+from . import double_auth
 from .models import Organisation, Role, Utilisateur
 from .mots_de_passe import envoyer
 
@@ -52,10 +55,11 @@ class MoiSerializer(UtilisateurSerializer):
     lecture_seule = serializers.BooleanField(source="est_lecture_seule", read_only=True)
     ia_disponible = serializers.SerializerMethodField(help_text="IA configurée sur l'installation et activée pour l'organisation.")
     visite_terminee = serializers.SerializerMethodField(help_text="Visite guidée terminée ou passée.")
+    double_auth = serializers.SerializerMethodField(help_text="Politique de l'installation, obligation et état pour ce compte.")
 
     class Meta(UtilisateurSerializer.Meta):
         fields = UtilisateurSerializer.Meta.fields + ["organisation", "est_admin", "est_admin_instance", "lecture_seule", "ia_disponible",
-                                                      "visite_terminee"]
+                                                      "visite_terminee", "double_auth"]
         read_only_fields = fields
 
     def get_est_admin(self, obj) -> bool:
@@ -66,6 +70,10 @@ class MoiSerializer(UtilisateurSerializer):
 
         return bool(obj.organisation and obj.organisation.ia_activee and ia_disponible())
 
+
+    def get_double_auth(self, obj) -> dict:
+        politique = double_auth.politique()
+        return {"politique": politique, "requise": double_auth.requise(obj, politique), "active": double_auth.active(obj)}
 
     def get_visite_terminee(self, obj) -> bool:
         return obj.visite_terminee_le is not None
@@ -100,6 +108,12 @@ class ConnexionView(APIView):
         if utilisateur is None or not utilisateur.organisation_id:
             # Message identique dans tous les cas : pas d'énumération des comptes.
             return Response({"detail": "Identifiants invalides."}, status=status.HTTP_400_BAD_REQUEST)
+        if double_auth.active(utilisateur):
+            # Mot de passe correct, session pas encore ouverte : le code de l'application est attendu (auth/connexion/code/).
+            request.session.cycle_key()
+            request.session[double_auth.SESSION_EN_ATTENTE] = {
+                "id": str(utilisateur.pk), "jusqua": time.time() + double_auth.DELAI_CODE, "essais": 0}
+            return Response({"double_authentification": True})
         login(request, utilisateur)
         journaliser(request, JournalAudit.Action.CONNEXION, utilisateur)
         return Response(MoiSerializer(utilisateur).data)

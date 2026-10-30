@@ -50,6 +50,10 @@ curl -s http://localhost:8000/api/sante/  # répond {"statut": "ok", …} si l'A
 | Connecté mais aucun projet | Vous n'êtes acteur d'aucun projet : créez-en un, ou demandez à être ajouté (Réglages du projet → Acteurs) |
 | Pas d'entrée « Administration » | Réservée aux administrateurs d'organisation et de l'installation (un administrateur change votre rôle dans **Administration → Comptes**) |
 | Trop de tentatives de connexion | Attendre une minute (limite de 10 par minute) |
+| Double authentification : « Code incorrect » alors que le code est bon | L'heure du téléphone ou du serveur est fausse (±30 s tolérées) : activer l'heure automatique du téléphone, vérifier la synchronisation NTP du serveur. Un code déjà utilisé est aussi refusé : attendre le suivant |
+| Double authentification : téléphone perdu | Se connecter avec un code de secours ; sinon l'administrateur de l'organisation **réinitialise** la double authentification (Administration → Comptes). Administrateur unique de l'installation bloqué : `docker compose exec backend python manage.py shell -c "from apps.comptes.models import Utilisateur; from apps.comptes.double_auth import desactiver; desactiver(Utilisateur.objects.get(email='admin@exemple.fr'))"` |
+| Double authentification de tous les comptes en échec après un changement de `DJANGO_SECRET_KEY` | Les secrets ne se déchiffrent plus : fixer `SOLUGATION_CLE_CHIFFREMENT` à l'avance, ou réinitialiser chaque compte |
+| Admin Django : renvoyé vers la page de connexion de SoluGation | Normal si la double authentification est active : se connecter par SoluGation (le code est demandé), puis rouvrir `/admin/` |
 
 ## Référentiels
 

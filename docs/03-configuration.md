@@ -12,6 +12,15 @@ Toute la configuration passe par le fichier **`.env`** à la racine (copié depu
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `http://localhost:5173` | Origine(s) de l'interface, schéma compris. |
 | `FRONTEND_URL` | `http://localhost:5173` | Adresse publique de l'interface, utilisée dans les liens des mails et des invitations. |
 
+## Sécurité des comptes
+
+| Variable | Exemple | Rôle |
+|---|---|---|
+| `DOUBLE_AUTH_POLITIQUE` | `facultative` (défaut), `desactivee`, `administrateurs`, `tous` | Double authentification par application (TOTP). L'écran **Administration** (administrateur de l'installation) prime sur cette valeur. |
+| `SOLUGATION_CLE_CHIFFREMENT` | clé Fernet | Chiffre les secrets de double authentification en base. Vide : dérivée de `DJANGO_SECRET_KEY` (la changer oblige alors à réinitialiser la double authentification de chaque compte). Générer : `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+
+Les limites de tentatives (connexion, codes, demandes de lien) sont comptées dans une table de cache en base (`solugation_cache`, créée au démarrage par `createcachetable`) : elles valent pour tous les processus du serveur.
+
 ## Base de données
 
 | Variable | Exemple | Rôle |

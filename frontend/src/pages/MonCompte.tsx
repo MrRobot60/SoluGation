@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { ErreurApi } from "../api/client";
-import { useChangerMotDePasse, useDeconnexion, useModifierProfil, useMoi } from "../api/hooks";
+import { useChangerMotDePasse, useDeconnexion, useDoubleAuth, useEtatDoubleAuth, useModifierProfil, useMoi } from "../api/hooks";
 import { Disposition } from "../composants/Disposition";
 
 const saisie = "w-full rounded-xl bg-remplissage px-3 py-2.5 text-[15px] outline-none focus:shadow-[0_0_0_2px_var(--sg-accent)] read-only:text-texte-2";
@@ -127,7 +127,148 @@ function SectionMotDePasse() {
   );
 }
 
+/** Mot de passe redemandé avant une action sensible sur la double authentification. */
+function ConfirmerMotDePasse({ libelle, enCours, erreur, valider, annuler, danger }: {
+  libelle: string; enCours: boolean; erreur: Error | null; valider: (mdp: string) => void; annuler: () => void; danger?: boolean;
+}) {
+  const [mdp, setMdp] = useState("");
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); valider(mdp); }} className="flex flex-col gap-3 rounded-2xl bg-remplissage/60 p-4">
+      <Champ libelle="Mot de passe" aide="Redemandé pour toute modification de la double authentification.">
+        <input className={saisie} type="password" autoComplete="current-password" required autoFocus value={mdp} onChange={(e) => setMdp(e.target.value)} />
+      </Champ>
+      {erreur && <p role="alert" className="text-[13px] font-medium text-manquant-texte">{erreursDe(erreur).join(" ")}</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={enCours || !mdp}
+          className={`h-10 rounded-full px-5 text-[14px] font-semibold disabled:opacity-45 ${danger ? "bg-manquant/15 text-manquant-texte" : "bouton-accent"}`}>
+          {enCours ? "Vérification…" : libelle}
+        </button>
+        <button type="button" onClick={annuler} className="h-10 rounded-full px-4 text-[14px] font-semibold text-texte-2">Annuler</button>
+      </div>
+    </form>
+  );
+}
+
+function CodesSecours({ codes, fermer }: { codes: string[]; fermer: () => void }) {
+  const [copie, setCopie] = useState(false);
+  const texte = `Codes de secours SoluGation (chacun ne sert qu'une fois)\n\n${codes.join("\n")}\n`;
+  const telecharger = () => {
+    const url = URL.createObjectURL(new Blob([texte], { type: "text/plain" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: "solugation-codes-de-secours.txt" });
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl bg-partiel/10 p-4">
+      <p className="text-[14px] font-semibold">Vos codes de secours</p>
+      <p className="text-[13px] text-texte-2">
+        Chacun permet de se connecter une fois si vous n'avez plus votre téléphone. Conservez-les hors de l'ordinateur (gestionnaire de mots de passe,
+        papier dans un lieu sûr). <span className="font-semibold text-texte">Ils ne seront plus affichés.</span>
+      </p>
+      <ul aria-label="Codes de secours" className="grid grid-cols-2 gap-x-6 gap-y-1 font-mono text-[15px] tabular-nums sm:grid-cols-3">
+        {codes.map((c) => <li key={c}>{c}</li>)}
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => void navigator.clipboard?.writeText(texte).then(() => setCopie(true))}
+          className="h-9 rounded-full bg-remplissage px-4 text-[13px] font-semibold">{copie ? "Copiés" : "Copier"}</button>
+        <button type="button" onClick={telecharger} className="h-9 rounded-full bg-remplissage px-4 text-[13px] font-semibold">Télécharger (.txt)</button>
+        <button type="button" onClick={fermer} className="bouton-accent h-9 rounded-full px-4 text-[13px] font-semibold">Je les ai mis en lieu sûr</button>
+      </div>
+    </div>
+  );
+}
+
+const POLITIQUES = {
+  desactivee: "La double authentification est désactivée sur cette installation.",
+  facultative: "Facultative : vous choisissez de l'activer.",
+  administrateurs: "Obligatoire pour les administrateurs sur cette installation.",
+  tous: "Obligatoire pour tous les comptes sur cette installation.",
+};
+
+function SectionDoubleAuth() {
+  const { data: etat } = useEtatDoubleAuth();
+  const { preparer, activer, desactiver, codes } = useDoubleAuth();
+  const [etape, setEtape] = useState<"" | "mdp-activer" | "scanner" | "mdp-codes" | "mdp-desactiver">("");
+  const [code, setCode] = useState("");
+  const [nouveauxCodes, setNouveauxCodes] = useState<string[] | null>(null);
+  if (!etat) return null;
+  if (etat.politique === "desactivee" && !etat.active) return null;
+  const qr = preparer.data;
+
+  return (
+    <Section id="titre-2fa" titre="Double authentification"
+      description="En plus du mot de passe, un code à 6 chiffres donné par une application de votre téléphone (Aegis, FreeOTP, Google Authenticator, 1Password…). Un mot de passe volé ne suffit plus.">
+      <p role="status" className={`rounded-2xl px-3.5 py-3 text-sm ${etat.active ? "bg-conforme/12 text-conforme-texte" : etat.requise ? "bg-manquant/12 text-manquant-texte" : "bg-remplissage text-texte-2"}`}>
+        <span className="font-semibold">{etat.active ? "✓ Active. " : etat.requise ? "À activer pour continuer. " : "Inactive. "}</span>
+        {POLITIQUES[etat.politique]}
+        {etat.active && ` ${etat.codes_secours_restants} code${etat.codes_secours_restants > 1 ? "s" : ""} de secours restant${etat.codes_secours_restants > 1 ? "s" : ""}.`}
+      </p>
+
+      {nouveauxCodes && <CodesSecours codes={nouveauxCodes} fermer={() => setNouveauxCodes(null)} />}
+
+      {!etat.active && etape === "" && (
+        <button type="button" onClick={() => setEtape("mdp-activer")} className="bouton-accent h-10 self-start rounded-full px-5 text-[14px] font-semibold">
+          Activer la double authentification
+        </button>
+      )}
+      {etape === "mdp-activer" && (
+        <ConfirmerMotDePasse libelle="Continuer" enCours={preparer.isPending} erreur={preparer.error} annuler={() => { setEtape(""); preparer.reset(); }}
+          valider={(mdp) => preparer.mutate(mdp, { onSuccess: () => setEtape("scanner") })} />
+      )}
+      {etape === "scanner" && qr && (
+        <form onSubmit={(e) => { e.preventDefault(); activer.mutate(code, { onSuccess: (r) => { setNouveauxCodes(r.codes_secours); setEtape(""); setCode(""); preparer.reset(); } }); }}
+          className="flex flex-col gap-4 rounded-2xl bg-remplissage/60 p-4">
+          <ol className="flex list-decimal flex-col gap-1 pl-5 text-[14px]">
+            <li>Dans votre application, ajoutez un compte en scannant ce QR code.</li>
+            <li>Saisissez le code à 6 chiffres qu'elle affiche.</li>
+          </ol>
+          <div className="flex flex-wrap items-start gap-5">
+            {/* QR code généré par le serveur (SVG, sans ressource externe) ; fond blanc pour la lecture en mode sombre. */}
+            <div className="size-[164px] shrink-0 overflow-hidden rounded-xl bg-white p-1 [&>svg]:size-full" dangerouslySetInnerHTML={{ __html: qr.qr_svg }} />
+            <div className="flex min-w-0 flex-1 basis-56 flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-texte-2">Pas d'appareil photo ? Saisissez cette clé :</span>
+                <code className="rounded-lg bg-groupe px-2.5 py-1.5 font-mono text-[13px] break-all select-all">{qr.secret.match(/.{1,4}/g)?.join(" ")}</code>
+              </div>
+              <Champ libelle="Code à 6 chiffres">
+                <input className={`${saisie} text-[18px] tracking-[0.12em] tabular-nums`} required autoFocus inputMode="numeric" autoComplete="one-time-code"
+                  pattern="[0-9 ]{6,7}" maxLength={7} value={code} onChange={(e) => setCode(e.target.value)} placeholder="123 456" />
+              </Champ>
+            </div>
+          </div>
+          {activer.error && <p role="alert" className="text-[13px] font-medium text-manquant-texte">{activer.error.message}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={activer.isPending} className="bouton-accent h-10 rounded-full px-5 text-[14px] font-semibold disabled:opacity-45">
+              {activer.isPending ? "Vérification…" : "Activer"}
+            </button>
+            <button type="button" onClick={() => { setEtape(""); preparer.reset(); activer.reset(); }} className="h-10 rounded-full px-4 text-[14px] font-semibold text-texte-2">Annuler</button>
+          </div>
+        </form>
+      )}
+
+      {etat.active && etape === "" && !nouveauxCodes && (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setEtape("mdp-codes")} className="h-10 rounded-full bg-remplissage px-5 text-[14px] font-semibold">Nouveaux codes de secours</button>
+          {!etat.requise && (
+            <button type="button" onClick={() => setEtape("mdp-desactiver")} className="h-10 rounded-full px-4 text-[14px] font-semibold text-manquant-texte">Désactiver</button>
+          )}
+        </div>
+      )}
+      {etape === "mdp-codes" && (
+        <ConfirmerMotDePasse libelle="Générer de nouveaux codes" enCours={codes.isPending} erreur={codes.error} annuler={() => { setEtape(""); codes.reset(); }}
+          valider={(mdp) => codes.mutate(mdp, { onSuccess: (r) => { setNouveauxCodes(r.codes_secours); setEtape(""); } })} />
+      )}
+      {etape === "mdp-desactiver" && (
+        <ConfirmerMotDePasse libelle="Désactiver" danger enCours={desactiver.isPending} erreur={desactiver.error} annuler={() => { setEtape(""); desactiver.reset(); }}
+          valider={(mdp) => desactiver.mutate(mdp, { onSuccess: () => setEtape("") })} />
+      )}
+    </Section>
+  );
+}
+
 export function PageMonCompte() {
+  const { data: moi } = useMoi();
+  const aConfigurer = !!moi && moi.double_auth.requise && !moi.double_auth.active;
   const deconnexion = useDeconnexion();
   const naviguer = useNavigate();
   return (
@@ -137,8 +278,15 @@ export function PageMonCompte() {
           <h1 className="text-[34px] leading-[1.06] font-bold tracking-[-0.03em] lg:text-[44px]">Mon compte</h1>
           <p className="text-[15px] text-texte-2">Vos informations et votre mot de passe.</p>
         </div>
+        {aConfigurer && (
+          <p role="alert" className="rounded-2xl bg-manquant/12 px-4 py-3 text-[15px] text-manquant-texte">
+            <span className="font-semibold">Double authentification obligatoire.</span> Activez-la ci-dessous pour accéder à SoluGation.
+          </p>
+        )}
+        {aConfigurer && <SectionDoubleAuth />}
         <SectionProfil />
         <SectionMotDePasse />
+        {!aConfigurer && <SectionDoubleAuth />}
         <Section id="titre-session" titre="Session">
           <button type="button" disabled={deconnexion.isPending}
             onClick={() => deconnexion.mutate(undefined, { onSettled: () => naviguer("/connexion") })}

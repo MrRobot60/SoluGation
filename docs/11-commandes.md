@@ -47,6 +47,7 @@ Voir [les référentiels](08-referentiels.md) pour les fichiers attendus.
 
 | Commande | Effet |
 |---|---|
+| `createcachetable` | Crée la table du cache partagé (limites de tentatives) ; lancée à chaque démarrage, sans effet si elle existe. |
 | `check --deploy --tag security` | Contrôles de configuration (valeurs d'exemple, domaine, SMTP, chiffrement) ; lancée à chaque démarrage du serveur de production, qui refuse de démarrer en cas d'erreur. |
 | `executer_taches [--intervalle 3] [--une-fois]` | Service de tâches (conteneur `taches`) : exécute les analyses IA en attente et les tâches planifiées ci-dessous. |
 | `scripts/sauvegarder.sh` / `scripts/restaurer.sh DOSSIER` | Scripts de l'hôte (pas de `manage.py`) : voir [sauvegardes](15-production.md#6-sauvegardes). |

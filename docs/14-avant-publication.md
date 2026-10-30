@@ -15,10 +15,8 @@
 
 | Sujet | À faire |
 |---|---|
-| Limitation des connexions partagée | Le compteur (10 tentatives par minute) est propre à chaque processus gunicorn : cache partagé (base ou Redis) |
 | Supervision | Alerte externe si le site ne répond plus ; exporter les journaux |
 | Poids de l'interface | Découper le paquet JavaScript principal (environ 620 ko) |
-| Double authentification | TOTP pour tous, obligatoire pour les administrateurs |
 | Durée de session | Réduire (8 h) et déconnexion après inactivité |
 | Base de données | Rôle PostgreSQL applicatif qui n'est pas propriétaire des tables (le trigger du journal ne peut alors plus être désactivé par l'application) |
 | Chiffrement au repos | Documenté mais à vérifier en conditions réelles (`S3_SSE`, disques chiffrés) |
@@ -52,6 +50,7 @@
 | Aucune ressource tierce (police embarquée), CSP stricte | [Sécurité](10-securite.md) |
 | Gestion des comptes : invitation par mail, rôle, désactivation, mot de passe oublié | [Guide, comptes](06-guide-utilisateur.md#comptes) |
 | Écran « Mon compte » : profil, changement de mot de passe, déconnexion sur mobile | [Guide, mon compte](06-guide-utilisateur.md#mon-compte) |
+| Double authentification (TOTP, codes de secours), politique au choix de l'installateur ; limites de tentatives partagées entre processus | [Guide](06-guide-utilisateur.md#double-authentification), [configuration](03-configuration.md#sécurité-des-comptes) |
 
 ## Juridique
 

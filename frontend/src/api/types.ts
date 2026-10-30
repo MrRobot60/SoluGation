@@ -15,6 +15,7 @@ export interface Moi {
   lecture_seule: boolean;
   ia_disponible: boolean;
   visite_terminee: boolean;
+  double_auth: { politique: PolitiqueDoubleAuth; requise: boolean; active: boolean };
 }
 
 export interface EtatIA {
@@ -534,6 +535,7 @@ export interface Compte {
   role_libelle: string;
   is_active: boolean;
   etat: "actif" | "invite" | "desactive";
+  double_auth_active: boolean;
   est_moi: boolean;
   last_login: string | null;
   date_joined: string;
@@ -541,3 +543,21 @@ export interface Compte {
 }
 
 export type NatureLien = "invitation" | "reinitialisation";
+
+export type PolitiqueDoubleAuth = "desactivee" | "facultative" | "administrateurs" | "tous";
+
+export interface EtatDoubleAuth {
+  politique: PolitiqueDoubleAuth;
+  requise: boolean;
+  active: boolean;
+  codes_secours_restants: number;
+}
+
+export interface SecuriteInstance {
+  politique: PolitiqueDoubleAuth;
+  ecran: PolitiqueDoubleAuth | "";
+  fichier: string;
+  choix: { cle: PolitiqueDoubleAuth; libelle: string }[];
+  modifie_par: string;
+  modifie_le: string | null;
+}

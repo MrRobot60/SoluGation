@@ -10,6 +10,7 @@ from apps.risques.api import DerogationViewSet, RisqueViewSet
 from apps.scans.api import ConstatViewSet, ImportViewSet
 from apps.audit.api import JournalAuditViewSet
 from apps.comptes import api as comptes
+from apps.comptes import api_double_auth
 from apps.comptes import gestion as gestion_comptes
 from apps.comptes import mots_de_passe
 from apps.documents.api import DocumentDeposeViewSet, PreuveViewSet
@@ -50,6 +51,13 @@ routeur.register("journal", JournalAuditViewSet, basename="journal")
 urlpatterns = [
     path("auth/csrf/", comptes.CsrfView.as_view()),
     path("auth/connexion/", comptes.ConnexionView.as_view()),
+    path("auth/connexion/code/", api_double_auth.ConnexionCodeView.as_view()),
+    path("auth/double-auth/", api_double_auth.EtatDoubleAuthView.as_view()),
+    path("auth/double-auth/preparer/", api_double_auth.PreparerDoubleAuthView.as_view()),
+    path("auth/double-auth/activer/", api_double_auth.ActiverDoubleAuthView.as_view()),
+    path("auth/double-auth/desactiver/", api_double_auth.DesactiverDoubleAuthView.as_view()),
+    path("auth/double-auth/codes-secours/", api_double_auth.CodesSecoursView.as_view()),
+    path("administration/securite/", api_double_auth.SecuriteInstanceView.as_view()),
     path("auth/deconnexion/", comptes.DeconnexionView.as_view()),
     path("auth/moi/", comptes.MoiView.as_view()),
     path("auth/moi/visite/", comptes.VisiteView.as_view()),

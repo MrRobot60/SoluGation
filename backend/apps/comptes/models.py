@@ -122,3 +122,54 @@ class Utilisateur(AbstractUser):
     @property
     def est_lecture_seule(self):
         return bool(self.role and self.role.lecture_seule)
+
+
+class PolitiqueDoubleAuth(models.TextChoices):
+    DESACTIVEE = "desactivee", "Désactivée"
+    FACULTATIVE = "facultative", "Facultative (chacun choisit)"
+    ADMINISTRATEURS = "administrateurs", "Obligatoire pour les administrateurs"
+    TOUS = "tous", "Obligatoire pour tous"
+
+
+class ConfigurationSecurite(models.Model):
+    """Réglages de sécurité de l'installation, saisis par son administrateur (priment sur le fichier `.env`). Une ligne."""
+
+    instance = models.PositiveSmallIntegerField(default=1, unique=True, editable=False)
+    politique_double_auth = models.CharField(max_length=16, choices=PolitiqueDoubleAuth.choices, blank=True,
+                                             help_text="Vide : valeur du fichier de configuration (DOUBLE_AUTH_POLITIQUE).")
+    modifie_par = models.ForeignKey("Utilisateur", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    modifie_le = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = verbose_name_plural = "configuration de sécurité"
+
+    @classmethod
+    def courante(cls):
+        return cls.objects.filter(instance=1).first()
+
+    def __str__(self):
+        return "Sécurité de l'installation"
+
+
+class DoubleAuthentification(models.Model):
+    """Application d'authentification (TOTP, RFC 6238) d'un compte. `active_le` vide : en cours d'activation."""
+
+    utilisateur = models.OneToOneField("Utilisateur", on_delete=models.CASCADE, related_name="double_auth")
+    secret_chiffre = models.TextField()
+    active_le = models.DateTimeField(null=True, blank=True)
+    dernier_pas = models.BigIntegerField(default=0, help_text="Dernier intervalle de 30 s accepté (un code ne sert qu'une fois).")
+    cree_le = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Double authentification de {self.utilisateur}"
+
+
+class CodeSecours(models.Model):
+    """Code de secours à usage unique (téléphone perdu). Seule son empreinte est conservée."""
+
+    utilisateur = models.ForeignKey("Utilisateur", on_delete=models.CASCADE, related_name="codes_secours")
+    empreinte = models.CharField(max_length=64)
+    utilise_le = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Code de secours de {self.utilisateur}"

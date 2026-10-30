@@ -7,6 +7,7 @@ case "${1:-web}" in
     # Configuration dangereuse (secret d'exemple, aucun nom de domaine…) : arrêt immédiat, message explicite.
     python manage.py check --deploy --tag security --fail-level ERROR
     python manage.py migrate --noinput
+    python manage.py createcachetable
     python manage.py initialiser_stockage
     exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 \
       --workers "${GUNICORN_WORKERS:-3}" --timeout 120 --graceful-timeout 30 \

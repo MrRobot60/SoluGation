@@ -62,7 +62,7 @@ export function VisiteGuidee() {
   const [rect, setRect] = useState<Rect | null>(null);
   const titre = useRef<HTMLHeadingElement>(null);
 
-  const active = !!moi && !moi.visite_terminee && !pause;
+  const active = !!moi && !moi.visite_terminee && !pause && !(moi.double_auth.requise && !moi.double_auth.active);
   const etapes = projet ? ETAPES : ETAPES.filter((e) => e.page.startsWith("/")); // lecture seule sans projet : pages générales
   const courante = etape >= 0 ? etapes[Math.min(etape, etapes.length - 1)] : null;
   const chemin = courante && (courante.page.startsWith("/") ? courante.page : `/projets/${projet}${courante.page ? `/${courante.page}` : ""}`);

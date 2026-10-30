@@ -13,8 +13,9 @@ from apps.core.api.acces import ROLE_ADMIN, est_admin_organisation
 from apps.core.api.journal import difference, journaliser
 from apps.core.api.permissions import MembreOrganisation
 
+from . import double_auth
 from .models import Role, Utilisateur
-from .mots_de_passe import inviter
+from .mots_de_passe import envoyer, inviter
 
 ROLES = ("admin", "membre", "auditeur")
 
@@ -39,19 +40,23 @@ class CompteSerializer(serializers.ModelSerializer):
     role_libelle = serializers.CharField(source="role.libelle", read_only=True, default="")
     nom_complet = serializers.CharField(source="__str__", read_only=True)
     etat = serializers.SerializerMethodField(help_text="actif, invite (invitation non acceptée) ou desactive.")
+    double_auth_active = serializers.SerializerMethodField()
     est_moi = serializers.SerializerMethodField()
     email = serializers.EmailField()
 
     class Meta:
         model = Utilisateur
         fields = ["id", "email", "first_name", "last_name", "nom_complet", "fonction", "role", "role_libelle", "is_active",
-                  "etat", "est_moi", "last_login", "date_joined", "is_superuser"]
+                  "etat", "double_auth_active", "est_moi", "last_login", "date_joined", "is_superuser"]
         read_only_fields = ["last_login", "date_joined", "is_superuser"]
 
     def get_etat(self, obj) -> str:
         if not obj.is_active:
             return "desactive"
         return "actif" if obj.has_usable_password() else "invite"
+
+    def get_double_auth_active(self, obj) -> bool:
+        return double_auth.active(obj)
 
     def get_est_moi(self, obj) -> bool:
         return obj.pk == self.context["request"].user.pk
@@ -125,4 +130,22 @@ class CompteViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Cre
         utilisateur.save(update_fields=["password"])
         inviter(utilisateur, request.user)
         journaliser(request, JournalAudit.Action.MODIFICATION, utilisateur, donnees={"invitation": "renvoyée"})
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None, responses={204: None})
+    @action(detail=True, methods=["post"], url_path="reinitialiser-double-auth")
+    def reinitialiser_double_auth(self, request, pk=None):
+        """Téléphone perdu, codes de secours épuisés : la personne se reconnecte avec son seul mot de passe, puis
+        réactive la double authentification (imposée à la connexion si la politique l'exige)."""
+        utilisateur = self.get_object()
+        if utilisateur.is_superuser and not request.user.is_superuser:
+            return Response({"detail": "Seul un administrateur de l'installation peut modifier ce compte."}, status=status.HTTP_400_BAD_REQUEST)
+        if utilisateur.pk == request.user.pk:
+            return Response({"detail": "Utilisez Mon compte pour votre propre double authentification."}, status=status.HTTP_400_BAD_REQUEST)
+        double_auth.desactiver(utilisateur)
+        journaliser(request, JournalAudit.Action.MODIFICATION, utilisateur, donnees={"double_authentification": "réinitialisée par l'administrateur"})
+        envoyer(utilisateur, "Double authentification réinitialisée", "Double authentification réinitialisée",
+                f"{request.user} a réinitialisé la double authentification de votre compte SoluGation. "
+                "À votre prochaine connexion, configurez-la de nouveau depuis Mon compte.",
+                note="Si vous n'avez pas demandé cette réinitialisation, prévenez immédiatement votre administrateur.")
         return Response(status=status.HTTP_204_NO_CONTENT)

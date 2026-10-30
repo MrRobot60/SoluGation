@@ -10,3 +10,5 @@ defusedxml>=0.7,<0.8
 weasyprint>=66,<67
 cryptography>=46,<47
 whitenoise>=6.9,<7
+pyotp>=2.9,<3
+segno>=1.6,<2

@@ -6,6 +6,8 @@ Chaque écran, ce qu'il montre et ce qu'on peut y faire. Les droits nécessaires
 
 Adresse email et mot de passe. Après plusieurs échecs, les tentatives sont freinées (10 par minute). La session dure deux semaines (valeur par défaut de Django) ; **Quitter** (bas de la barre latérale) déconnecte.
 
+**Double authentification** : si elle est active sur votre compte, un second écran demande le code à 6 chiffres de votre application d'authentification (ou **Utiliser un code de secours**). Vous avez 5 minutes et 5 essais, sinon il faut redonner le mot de passe.
+
 **Mot de passe oublié ?** (sous le bouton de connexion) : saisissez votre email, vous recevez un lien valable **1 heure**, utilisable **une seule fois**. La réponse affichée est toujours la même, que le compte existe ou non (aucune information n'est donnée à un tiers). Après le changement, un mail de confirmation est envoyé et **toutes vos autres sessions sont fermées**.
 
 ## Tableau de bord
@@ -110,6 +112,7 @@ Référentiels disponibles (communs et copies privées de l'organisation), mesur
 
 - **Comptes** (administrateur d'organisation) : voir ci-dessous.
 - **Organisation** (administrateur d'organisation) : autoriser ou non l'IA pour l'organisation.
+- **Double authentification** (administrateur de l'installation) : voir ci-dessous.
 - **Intelligence artificielle** (administrateur de l'installation) : voir [IA](07-ia.md).
 - Lien vers le **journal d'audit** de toute l'organisation.
 
@@ -122,8 +125,22 @@ Référentiels disponibles (communs et copies privées de l'organisation), mesur
 | **Changer le rôle** | Liste déroulante de la ligne | Immédiat (un auditeur passe en lecture seule partout). |
 | **Désactiver** | Deux clics (confirmation) | Connexion impossible, **sessions ouvertes coupées**, liens en cours invalidés. Le compte et son historique sont conservés (jamais de suppression : le journal d'audit les cite). |
 | **Réactiver** | « Afficher les comptes désactivés », puis **Réactiver** | Le compte retrouve ses accès. |
+| **Réinitialiser la double authentification** | Sur un compte marqué *Double auth.* (téléphone perdu) | La personne se reconnecte avec son seul mot de passe, puis la reconfigure (imposé si la politique l'exige). Mail envoyé à la personne. |
 
 Garde-fous : on ne peut ni se désactiver soi-même, ni retirer son propre rôle d'administrateur ; l'organisation garde toujours **au moins un administrateur actif** ; seul un administrateur de l'installation modifie le compte d'un autre administrateur de l'installation ; l'email d'un compte ne se modifie pas (invitez la nouvelle adresse). Chaque action est tracée au journal d'audit.
+
+### Double authentification de l'installation
+
+Réglage de l'**administrateur de l'installation**, valable pour toutes les organisations. Il prime sur `DOUBLE_AUTH_POLITIQUE` du fichier de configuration.
+
+| Politique | Effet |
+|---|---|
+| Désactivée | Personne ne peut l'activer ; elle n'est pas demandée à la connexion (même pour ceux qui l'avaient activée). |
+| Facultative (par défaut) | Chacun l'active ou non depuis Mon compte. |
+| Obligatoire pour les administrateurs | Imposée aux administrateurs d'organisation et de l'installation. |
+| Obligatoire pour tous | Imposée à tous les comptes. |
+
+Une politique « obligatoire » s'applique dès l'enregistrement, y compris à vous : sans double authentification active, vous êtes dirigé vers Mon compte. L'obligation est appliquée par le serveur (API et admin Django), pas seulement par l'interface.
 
 Les **projets** se partagent ensuite depuis leurs réglages (**Réglages du projet → Acteurs**) : un compte ne voit que les projets dont il est acteur (sauf administrateur).
 
@@ -135,9 +152,25 @@ Accès : votre nom en bas de la barre latérale, ou l'avatar en haut à droite s
 |---|---|
 | **Profil** | Modifier prénom, nom et fonction (affichés dans les projets, les mails et le journal). L'email (identifiant) et le rôle relèvent d'un administrateur. |
 | **Mot de passe** | Le changer en donnant l'actuel. La session en cours reste ouverte ; **toutes les autres sont fermées** et un mail de confirmation est envoyé. Mot de passe actuel oublié : **Mot de passe oublié ?** |
+| **Double authentification** | Voir ci-dessous. |
 | **Session** | Se déconnecter (notamment sur mobile). |
 
 Chaque modification est tracée au journal d'audit. Les changements de mot de passe sont limités à 10 par heure.
+
+### Double authentification
+
+En plus du mot de passe, un code à 6 chiffres renouvelé toutes les 30 secondes par une application de votre téléphone : Aegis ou FreeOTP (libres), Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden… Un mot de passe volé ne suffit plus.
+
+| Étape | Détail |
+|---|---|
+| **Activer** | Mot de passe redemandé, puis QR code à scanner (ou clé à saisir à la main), puis le code affiché par l'application. |
+| **Codes de secours** | 10 codes affichés **une seule fois** à l'activation : copiez-les ou téléchargez-les, et rangez-les hors de l'ordinateur. Chacun permet une connexion sans téléphone. Un mail vous prévient quand l'un d'eux est utilisé. **Nouveaux codes de secours** remplace tous les anciens. |
+| **Désactiver** | Mot de passe redemandé ; impossible si l'installation l'impose pour votre compte. |
+| **Téléphone perdu** | Connectez-vous avec un code de secours, puis réactivez. Plus de code : l'administrateur de votre organisation **réinitialise** votre double authentification. |
+
+Activer la double authentification ferme vos autres sessions ouvertes. Chaque activation, désactivation ou réinitialisation est tracée au journal et vous est signalée par mail.
+
+Si l'installation l'**impose** à votre compte (voir [Administration](#double-authentification-de-linstallation)), vous êtes dirigé vers Mon compte tant qu'elle n'est pas activée : le reste de l'application est inaccessible.
 
 ## Aide et visite guidée
 

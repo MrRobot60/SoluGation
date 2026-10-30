@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, envoyerFichier, ErreurApi, toutesLesPages } from "./client";
-import type { Compte, NatureLien, Acteur, AnalyseIA, ConstatScan, FicheMesure, Reunion, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
+import type { Compte, EtatDoubleAuth, NatureLien, PolitiqueDoubleAuth, SecuriteInstance, Acteur, AnalyseIA, ConstatScan, FicheMesure, Reunion, EtatIA, ImportScan, ObjetEbios, Projet, Rapport, SuggestionEbios, SyntheseEbios, RecommandationIA, TypeAnalyse, Commentaire, EntreeJournal, NotificationApp, Tache, DocumentAttendu, DocumentDepose, EvaluationMesure, Mesure, Moi, Preuve, ResultatIA, NouveauProjet, Pagine, ProjetResume, Referentiel, Role, StatutConformite, StatutDocument, TableauDeBord, Utilisateur } from "./types";
 
 const pasDeRelanceSiRefus = (essais: number, erreur: Error) =>
   !(erreur instanceof ErreurApi && [401, 403, 404].includes(erreur.statut)) && essais < 2;
@@ -27,15 +27,85 @@ export function useTableauDeBord(projetId: string | undefined) {
   });
 }
 
+/** Premier temps : renvoie le compte, ou `{ double_authentification: true }` si un code est attendu. */
 export function useConnexion() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (identifiants: { email: string; password: string }) =>
-      api<Moi>("/api/auth/connexion/", { methode: "POST", corps: identifiants }),
+      api<Moi | { double_authentification: true }>("/api/auth/connexion/", { methode: "POST", corps: identifiants }),
+    onSuccess: (r) => {
+      if ("double_authentification" in r) return;
+      client.clear();
+      client.setQueryData(["moi"], r);
+    },
+  });
+}
+
+export function useConnexionCode() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api<Moi>("/api/auth/connexion/code/", { methode: "POST", corps: { code } }),
     onSuccess: (moi) => {
       client.clear();
       client.setQueryData(["moi"], moi);
     },
+  });
+}
+
+export function useEtatDoubleAuth() {
+  return useQuery({ queryKey: ["double-auth"], queryFn: () => api<EtatDoubleAuth>("/api/auth/double-auth/") });
+}
+
+/** Actions de « Mon compte » : préparer (QR code), activer (code), désactiver, régénérer les codes de secours. */
+export function useDoubleAuth() {
+  const client = useQueryClient();
+  const rafraichir = () => {
+    void client.invalidateQueries({ queryKey: ["double-auth"] });
+    void client.invalidateQueries({ queryKey: ["moi"] });
+  };
+  return {
+    preparer: useMutation({
+      mutationFn: (mot_de_passe: string) =>
+        api<{ secret: string; uri: string; qr_svg: string }>("/api/auth/double-auth/preparer/", { methode: "POST", corps: { mot_de_passe } }),
+    }),
+    activer: useMutation({
+      mutationFn: (code: string) =>
+        api<EtatDoubleAuth & { codes_secours: string[] }>("/api/auth/double-auth/activer/", { methode: "POST", corps: { code } }),
+      onSuccess: rafraichir,
+    }),
+    desactiver: useMutation({
+      mutationFn: (mot_de_passe: string) => api<EtatDoubleAuth>("/api/auth/double-auth/desactiver/", { methode: "POST", corps: { mot_de_passe } }),
+      onSuccess: rafraichir,
+    }),
+    codes: useMutation({
+      mutationFn: (mot_de_passe: string) =>
+        api<EtatDoubleAuth & { codes_secours: string[] }>("/api/auth/double-auth/codes-secours/", { methode: "POST", corps: { mot_de_passe } }),
+      onSuccess: rafraichir,
+    }),
+  };
+}
+
+export function useSecuriteInstance() {
+  return useQuery({ queryKey: ["securite-instance"], queryFn: () => api<SecuriteInstance>("/api/administration/securite/") });
+}
+
+export function useModifierSecuriteInstance() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (politique_double_auth: PolitiqueDoubleAuth | "") =>
+      api<SecuriteInstance>("/api/administration/securite/", { methode: "PATCH", corps: { politique_double_auth } }),
+    onSuccess: (r) => {
+      client.setQueryData(["securite-instance"], r);
+      void client.invalidateQueries({ queryKey: ["moi"] });
+    },
+  });
+}
+
+export function useReinitialiserDoubleAuth() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/api/administration/comptes/${id}/reinitialiser-double-auth/`, { methode: "POST" }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["comptes"] }),
   });
 }
 

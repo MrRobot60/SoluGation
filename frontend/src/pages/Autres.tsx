@@ -14,6 +14,8 @@ export function Protege() {
     return <Navigate to="/connexion" replace state={{ depuis: location.pathname }} />;
   }
   if (!data) return <p className="p-8 text-sm text-texte-2">Le serveur est injoignable.</p>;
+  // Double authentification imposée et pas encore configurée : le serveur refuse tout le reste, on va à Mon compte.
+  if (data.double_auth.requise && !data.double_auth.active && location.pathname !== "/compte") return <Navigate to="/compte" replace />;
   return (
     <>
       <Outlet />

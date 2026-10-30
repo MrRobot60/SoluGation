@@ -6,11 +6,11 @@ Deux niveaux de rôles s'additionnent : le rôle dans l'**organisation** et le r
 
 | Rôle | Voit | Particularités |
 |---|---|---|
-| Administrateur | Tous les projets de l'organisation | Gère les comptes (invitation, rôle, désactivation), règle l'organisation (dont l'IA), décide sur tous les projets, journal hors projet, intégrité du journal |
+| Administrateur | Tous les projets de l'organisation | Gère les comptes (invitation, rôle, désactivation, réinitialisation de la double authentification), règle l'organisation (dont l'IA), décide sur tous les projets, journal hors projet, intégrité du journal |
 | Membre | Les projets dont il est acteur | — |
 | Auditeur | Les projets dont il est acteur | Lecture seule partout |
 
-**Administrateur de l'installation** (superutilisateur) : configure l'IA pour toute l'installation, accède à l'admin Django. Il ne voit pas pour autant les données des autres organisations dans l'interface.
+**Administrateur de l'installation** (superutilisateur) : choisit la politique de double authentification et configure l'IA pour toute l'installation, accède à l'admin Django. Il ne voit pas pour autant les données des autres organisations dans l'interface.
 
 ## Rôles de projet
 

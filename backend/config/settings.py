@@ -60,6 +60,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.comptes.middleware.DoubleAuthMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -100,6 +101,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # la réinitialisation est limitée à 1 heure par son propre générateur.
 PASSWORD_RESET_TIMEOUT = 7 * 24 * 60 * 60
 MAILS_COMPTES_SYNCHRONES = env.bool("MAILS_COMPTES_SYNCHRONES", default=False)  # tests uniquement
+
+# Double authentification (application TOTP) : desactivee | facultative (défaut) | administrateurs | tous.
+# L'écran Administration (administrateur de l'installation) prime sur cette valeur.
+DOUBLE_AUTH_POLITIQUE = env("DOUBLE_AUTH_POLITIQUE", default="facultative")
+# Clé Fernet des secrets de double authentification ; vide : dérivée de DJANGO_SECRET_KEY.
+SOLUGATION_CLE_CHIFFREMENT = env("SOLUGATION_CLE_CHIFFREMENT", default="")
+
+# Cache partagé entre les processus du serveur (limites de tentatives de connexion, de demandes de lien…).
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "solugation_cache"}}
 
 LANGUAGE_CODE = "fr-fr"
 TIME_ZONE = "Europe/Paris"
@@ -181,7 +191,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"connexion": "10/min", "mot_de_passe": "5/hour", "mot_de_passe_lien": "30/hour",
-                               "changement_mot_de_passe": "10/hour"},
+                               "changement_mot_de_passe": "10/hour", "double_auth": "10/min"},
     "NUM_PROXIES": 1 if SOLUGATION_PROXY_DE_CONFIANCE else None,
 }
 
