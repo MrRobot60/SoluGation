@@ -24,6 +24,7 @@ import { PageConnexion } from "./pages/Connexion";
 import { PageDefinirMotDePasse, PageMotDePasseOublie } from "./pages/MotDePasse";
 import { PageDocuments } from "./pages/Documents";
 import { PageMesures } from "./pages/Mesures";
+import { PageMonCompte } from "./pages/MonCompte";
 import { PagePlanAction } from "./pages/PlanAction";
 import { PageNouveauProjet } from "./pages/NouveauProjet";
 import { PageTableauDeBord } from "./pages/TableauDeBord";
@@ -45,6 +46,7 @@ const routeur = createBrowserRouter([
       { path: "/", element: <PageAccueil /> },
       { path: "/projets/nouveau", element: <PageNouveauProjet /> },
       { path: "/administration", element: <PageAdministration /> },
+      { path: "/compte", element: <PageMonCompte /> },
       { path: "/bibliotheque", element: <PageBibliotheque /> },
       { path: "/aide", element: aide },
       { path: "/aide/:page", element: aide },

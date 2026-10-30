@@ -1,6 +1,7 @@
 """Authentification par session Django (cookie HttpOnly + CSRF), adaptée à un frontend servi sur le même domaine."""
 
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, password_validation, update_session_auth_hash
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -18,6 +19,7 @@ from apps.core.api.journal import difference, journaliser
 from apps.core.api.permissions import AdminOrganisation, MembreOrganisation
 
 from .models import Organisation, Role, Utilisateur
+from .mots_de_passe import envoyer
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -112,12 +114,72 @@ class DeconnexionView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class ProfilSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Utilisateur
+        fields = ["first_name", "last_name", "fonction"]
+
+
 class MoiView(APIView):
+    """Le compte connecté. PATCH : son nom et sa fonction (l'email et le rôle relèvent de l'administrateur)."""
+
     permission_classes = [MembreOrganisation]
     serializer_class = MoiSerializer
 
     def get(self, request):
         return Response(MoiSerializer(request.user).data)
+
+    @extend_schema(request=ProfilSerializer, responses={200: MoiSerializer})
+    def patch(self, request):
+        profil = ProfilSerializer(request.user, data=request.data, partial=True)
+        profil.is_valid(raise_exception=True)
+        diff = difference(request.user, profil.validated_data)
+        profil.save()
+        if diff:
+            journaliser(request, JournalAudit.Action.MODIFICATION, request.user, donnees=diff)
+        return Response(MoiSerializer(request.user).data)
+
+
+class ChangementMotDePasseSerializer(serializers.Serializer):
+    actuel = serializers.CharField(trim_whitespace=False, max_length=256)
+    nouveau = serializers.CharField(trim_whitespace=False, max_length=256)
+
+    def validate_actuel(self, valeur):
+        if not self.context["request"].user.check_password(valeur):
+            raise serializers.ValidationError("Mot de passe actuel incorrect.")
+        return valeur
+
+    def validate(self, attrs):
+        if attrs["nouveau"] == attrs["actuel"]:
+            raise serializers.ValidationError({"nouveau": ["Le nouveau mot de passe doit être différent de l'actuel."]})
+        try:
+            password_validation.validate_password(attrs["nouveau"], self.context["request"].user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({"nouveau": list(e.messages)})
+        return attrs
+
+
+class ChangementMotDePasseView(APIView):
+    """Changement par le titulaire : mot de passe actuel exigé ; cette session reste ouverte, les autres sont fermées."""
+
+    permission_classes = [MembreOrganisation]
+    serializer_class = ChangementMotDePasseSerializer
+    throttle_scope = "changement_mot_de_passe"  # freine la recherche du mot de passe actuel depuis une session volée
+
+    @extend_schema(request=ChangementMotDePasseSerializer, responses={204: None})
+    def post(self, request):
+        donnees = ChangementMotDePasseSerializer(data=request.data, context={"request": request})
+        donnees.is_valid(raise_exception=True)
+        utilisateur = request.user
+        utilisateur.set_password(donnees.validated_data["nouveau"])
+        utilisateur.save(update_fields=["password"])
+        update_session_auth_hash(request, utilisateur)
+        journaliser(request, JournalAudit.Action.MODIFICATION, utilisateur, donnees={"mot_de_passe": "changé par le titulaire"})
+        envoyer(utilisateur, "Mot de passe modifié", "Votre mot de passe a été modifié",
+                "Le mot de passe de votre compte SoluGation vient d'être modifié depuis l'écran Mon compte. "
+                "Les autres sessions ouvertes ont été fermées.",
+                note="Si vous n'êtes pas à l'origine de ce changement, prévenez immédiatement votre administrateur.")
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class VisiteSerializer(serializers.Serializer):

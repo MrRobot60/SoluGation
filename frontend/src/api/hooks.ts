@@ -47,6 +47,23 @@ export function useDeconnexion() {
   });
 }
 
+export function useModifierProfil() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (profil: Pick<Moi, "first_name" | "last_name" | "fonction">) => api<Moi>("/api/auth/moi/", { methode: "PATCH", corps: profil }),
+    onSuccess: (moi) => {
+      client.setQueryData(["moi"], moi);
+      void client.invalidateQueries({ queryKey: ["utilisateurs"] });
+    },
+  });
+}
+
+export function useChangerMotDePasse() {
+  return useMutation({
+    mutationFn: (corps: { actuel: string; nouveau: string }) => api<void>("/api/auth/moi/mot-de-passe/", { methode: "POST", corps }),
+  });
+}
+
 export function useComptes() {
   return useQuery({ queryKey: ["comptes"], queryFn: () => api<Compte[]>("/api/administration/comptes/") });
 }

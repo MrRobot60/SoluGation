@@ -187,13 +187,15 @@ function BarreLaterale({ projetId, referentiels }: { projetId: string; referenti
         )}
         <div className="px-1"><ChoixDuTheme /></div>
         <div className="mt-1 flex items-center gap-2.5 border-t border-separateur px-3 pt-2.5">
-          <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-remplissage text-xs font-bold text-texte-2">
-            {initiales(moi?.nom_complet ?? "")}
-          </span>
-          <span className="flex min-w-0 flex-1 flex-col gap-px">
-            <span className="truncate text-[13px] font-semibold">{moi?.nom_complet}</span>
-            <span className="truncate text-xs text-texte-2">{moi?.role?.libelle ?? moi?.organisation.nom}</span>
-          </span>
+          <NavLink to="/compte" title="Mon compte" className={({ isActive }) => `-my-1 -ml-1.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pl-1.5 ${isActive ? "bg-remplissage" : "hover:bg-remplissage"}`}>
+            <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-remplissage text-xs font-bold text-texte-2">
+              {initiales(moi?.nom_complet ?? "")}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-px">
+              <span className="truncate text-[13px] font-semibold">{moi?.nom_complet}</span>
+              <span className="truncate text-xs text-texte-2">Mon compte</span>
+            </span>
+          </NavLink>
           <button
             type="button"
             onClick={() => deconnexion.mutate(undefined, { onSettled: () => naviguer("/connexion") })}
@@ -246,6 +248,7 @@ function BarreOnglets({ projetId }: { projetId: string }) {
 /** Mobile : logo, sélecteur de projet (avec « Nouveau projet ») et notifications, sur toutes les pages. */
 function BarreMobile({ projetId }: { projetId: string }) {
   const { pathname } = useLocation();
+  const { data: moi } = useMoi();
   return (
     <div className="mb-4 flex items-center gap-2.5 lg:hidden">
       <Logo />
@@ -254,6 +257,9 @@ function BarreMobile({ projetId }: { projetId: string }) {
         <IconeAide taille={22} />
       </Link>
       <Cloche />
+      <Link to="/compte" aria-label="Mon compte" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-remplissage text-xs font-bold text-texte-2">
+        {initiales(moi?.nom_complet ?? "")}
+      </Link>
     </div>
   );
 }

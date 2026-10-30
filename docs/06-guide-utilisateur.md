@@ -127,6 +127,18 @@ Garde-fous : on ne peut ni se désactiver soi-même, ni retirer son propre rôle
 
 Les **projets** se partagent ensuite depuis leurs réglages (**Réglages du projet → Acteurs**) : un compte ne voit que les projets dont il est acteur (sauf administrateur).
 
+## Mon compte
+
+Accès : votre nom en bas de la barre latérale, ou l'avatar en haut à droite sur mobile.
+
+| Section | Ce qu'on y fait |
+|---|---|
+| **Profil** | Modifier prénom, nom et fonction (affichés dans les projets, les mails et le journal). L'email (identifiant) et le rôle relèvent d'un administrateur. |
+| **Mot de passe** | Le changer en donnant l'actuel. La session en cours reste ouverte ; **toutes les autres sont fermées** et un mail de confirmation est envoyé. Mot de passe actuel oublié : **Mot de passe oublié ?** |
+| **Session** | Se déconnecter (notamment sur mobile). |
+
+Chaque modification est tracée au journal d'audit. Les changements de mot de passe sont limités à 10 par heure.
+
 ## Aide et visite guidée
 
 - **Aide** (barre latérale, ou **?** en haut sur mobile) : cette documentation, avec recherche (insensible aux accents) et sommaire de page. Depuis un écran, le bouton ouvre directement la section correspondante de ce guide.

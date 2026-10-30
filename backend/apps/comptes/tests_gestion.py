@@ -159,3 +159,51 @@ class GestionComptesTests(BaseApi):
         with self.captureOnCommitCallbacks(execute=True):
             APIClient().post("/api/auth/mot-de-passe-oublie/", {"email": "chef@a.test"}, format="json")
         self.assertEqual(len(mail.outbox), nb)  # compte désactivé : rien n'est envoyé
+
+
+@override_settings(MAILS_COMPTES_SYNCHRONES=True)
+class MonCompteTests(BaseApi):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        # Vraie connexion (pas force_login) : la session porte l'empreinte du mot de passe, comme dans l'appli.
+        self.session = APIClient()
+        self.assertEqual(self.session.post("/api/auth/connexion/", {"email": "chef@a.test", "password": "mot-de-passe-de-test-1"},
+                                           format="json").status_code, 200)
+        self.autre_session = APIClient()
+        self.autre_session.post("/api/auth/connexion/", {"email": "chef@a.test", "password": "mot-de-passe-de-test-1"}, format="json")
+
+    def changer(self, actuel, nouveau):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.session.post("/api/auth/moi/mot-de-passe/", {"actuel": actuel, "nouveau": nouveau}, format="json")
+
+    def test_profil_modifiable_sans_email_ni_role(self):
+        r = self.session.patch("/api/auth/moi/", {"first_name": "Camille", "last_name": "Martin", "fonction": "RSSI",
+                                                  "email": "pirate@b.test", "role": "admin"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.user_a.refresh_from_db()
+        self.assertEqual((str(self.user_a), self.user_a.fonction,
+                          self.user_a.email, self.user_a.role), ("Camille Martin", "RSSI", "chef@a.test", None))
+        entree = JournalAudit.objects.filter(objet_id=str(self.user_a.pk)).latest("horodatage")
+        self.assertEqual(entree.donnees["fonction"], {"avant": "", "apres": "RSSI"})
+
+    def test_changement_de_mot_de_passe(self):
+        self.assertEqual(self.changer("mauvais-mot-de-passe", MDP).status_code, 400)
+        self.assertEqual(self.changer("mot-de-passe-de-test-1", "mot-de-passe-de-test-1").status_code, 400)  # identique
+        self.assertEqual(self.changer("mot-de-passe-de-test-1", "chef@a.test-1").status_code, 400)  # trop faible
+        self.assertEqual(self.changer("mot-de-passe-de-test-1", MDP).status_code, 204)
+        self.assertEqual(self.session.get("/api/auth/moi/").status_code, 200)  # cette session reste ouverte
+        self.assertEqual(self.autre_session.get("/api/auth/moi/").status_code, 403)  # les autres sont fermées
+        self.assertEqual((mail.outbox[-1].to, "modifié" in mail.outbox[-1].subject), (["chef@a.test"], True))
+        self.assertTrue(JournalAudit.objects.filter(objet_id=str(self.user_a.pk), donnees__mot_de_passe="changé par le titulaire").exists())
+        self.user_a.refresh_from_db()
+        self.assertTrue(self.user_a.check_password(MDP))
+
+    def test_auditeur_peut_modifier_son_profil(self):
+        self.user_a.role = role(Role.Portee.ORGANISATION, "auditeur")
+        self.user_a.save()
+        self.assertEqual(self.session.patch("/api/auth/moi/", {"fonction": "Auditeur"}, format="json").status_code, 200)
+
+    def test_anonyme_refuse(self):
+        self.assertEqual(APIClient().patch("/api/auth/moi/", {"fonction": "x"}, format="json").status_code, 403)
+        self.assertEqual(APIClient().post("/api/auth/moi/mot-de-passe/", {"actuel": "x", "nouveau": MDP}, format="json").status_code, 403)

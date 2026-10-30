@@ -15,6 +15,7 @@ const SECTIONS_GUIDE: Record<string, string> = {
   "": "Tableau de bord", mesures: "Mesures", documents: "Documents", "plan-action": "Plan d'action", scans: "Scans de vulnérabilités",
   risques: "Risques et dérogations", ebios: "EBIOS RM", reunions: "Réunions", rapports: "Rapports", journal: "Journal d'audit",
   reglages: "Réglages du projet", bibliotheque: "Bibliothèque", administration: "Administration", nouveau: "Créer un projet",
+  compte: "Mon compte",
 };
 
 export function lienAide(chemin: string) {

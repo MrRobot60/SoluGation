@@ -180,7 +180,8 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.api.base.gestionnaire_exceptions",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"connexion": "10/min", "mot_de_passe": "5/hour", "mot_de_passe_lien": "30/hour"},
+    "DEFAULT_THROTTLE_RATES": {"connexion": "10/min", "mot_de_passe": "5/hour", "mot_de_passe_lien": "30/hour",
+                               "changement_mot_de_passe": "10/hour"},
     "NUM_PROXIES": 1 if SOLUGATION_PROXY_DE_CONFIANCE else None,
 }
 

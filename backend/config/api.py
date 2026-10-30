@@ -53,6 +53,7 @@ urlpatterns = [
     path("auth/deconnexion/", comptes.DeconnexionView.as_view()),
     path("auth/moi/", comptes.MoiView.as_view()),
     path("auth/moi/visite/", comptes.VisiteView.as_view()),
+    path("auth/moi/mot-de-passe/", comptes.ChangementMotDePasseView.as_view()),
     path("auth/mot-de-passe-oublie/", mots_de_passe.MotDePasseOublieView.as_view()),
     path("auth/lien/", mots_de_passe.LienView.as_view()),
     path("organisation/", comptes.OrganisationView.as_view()),

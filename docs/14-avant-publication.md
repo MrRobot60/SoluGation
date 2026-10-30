@@ -19,7 +19,6 @@
 | Supervision | Alerte externe si le site ne répond plus ; exporter les journaux |
 | Poids de l'interface | Découper le paquet JavaScript principal (environ 620 ko) |
 | Double authentification | TOTP pour tous, obligatoire pour les administrateurs |
-| Changer son mot de passe une fois connecté | Écran « Mon compte » (aujourd'hui : « Mot de passe oublié ») |
 | Durée de session | Réduire (8 h) et déconnexion après inactivité |
 | Base de données | Rôle PostgreSQL applicatif qui n'est pas propriétaire des tables (le trigger du journal ne peut alors plus être désactivé par l'application) |
 | Chiffrement au repos | Documenté mais à vérifier en conditions réelles (`S3_SSE`, disques chiffrés) |
@@ -52,6 +51,7 @@
 | Service de tâches : analyses IA hors du serveur web, rappels planifiés sans cron | `executer_taches` |
 | Aucune ressource tierce (police embarquée), CSP stricte | [Sécurité](10-securite.md) |
 | Gestion des comptes : invitation par mail, rôle, désactivation, mot de passe oublié | [Guide, comptes](06-guide-utilisateur.md#comptes) |
+| Écran « Mon compte » : profil, changement de mot de passe, déconnexion sur mobile | [Guide, mon compte](06-guide-utilisateur.md#mon-compte) |
 
 ## Juridique
 
