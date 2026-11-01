@@ -9,6 +9,7 @@ class Licence(models.TextChoices):
     LIBRE = "libre", "Libre / domaine public"
     LICENCE_OUVERTE = "licence_ouverte", "Licence Ouverte Etalab"
     CC_BY_SA = "cc_by_sa", "CC BY-SA"
+    APACHE_2 = "apache_2", "Apache 2.0"
     PROPRIETAIRE = "proprietaire", "Propriétaire (copie licenciée du client)"
 
 

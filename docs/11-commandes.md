@@ -30,7 +30,7 @@ Le **slug** d'une organisation est son nom en minuscules sans accents ni espaces
 | Commande | Effet |
 |---|---|
 | `importer_referentiel libres` | Importe (ou met à jour) tous les référentiels libres. |
-| `importer_referentiel CODE [--fichier CHEMIN]` | Un seul : `nist-csf`, `owasp-asvs`, `hygiene-anssi`, `ii901`, `rgs`. |
+| `importer_referentiel CODE [--fichier CHEMIN]` | Un seul : `nist-csf`, `owasp-asvs`, `hygiene-anssi`, `monservicesecurise`, `ii901`, `rgs`. |
 | `importer_referentiel iso27001 --organisation SLUG --fichier /data/private/iso27001.csv` | Copie licenciée ISO 27001, visible de cette seule organisation. |
 
 Voir [les référentiels](08-referentiels.md) pour les fichiers attendus.

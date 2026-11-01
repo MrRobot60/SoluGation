@@ -56,7 +56,7 @@
 
 | Référentiel | Licence | Intégrable |
 |---|---|---|
-| Mesures de MonServiceSécurisé (ANSSI, homologation des services publics en ligne) | Apache-2.0 (dépôt `betagouv/mon-service-securise`) | Oui, en citant la source |
+| Mesures de MonServiceSécurisé (ANSSI, homologation des services publics en ligne) | Apache-2.0 (dépôt `betagouv/mon-service-securise`) | **Intégré** (`monservicesecurise`) |
 | NIST SP 800-53 r5 (+ bases 800-53B), format OSCAL | Domaine public / CC0 | Oui |
 | Règlement d'exécution (UE) 2024/2690 (mesures NIS2), DORA, RGPD art. 32 | Textes officiels de l'UE, réutilisables | Oui, en citant EUR-Lex |
 | OWASP MASVS (applications mobiles) | CC BY-SA, comme l'ASVS | Oui, avec attribution et partage à l'identique |

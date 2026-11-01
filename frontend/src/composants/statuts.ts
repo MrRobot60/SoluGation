@@ -22,6 +22,7 @@ const NOMS_COURTS: Record<string, string> = {
   "nist-csf": "NIST CSF",
   ii901: "II 901",
   iso27001: "ISO 27001",
+  monservicesecurise: "MonServiceSécurisé",
 };
 
 /** Nom court pour les légendes ; le nom complet reste dans les libellés accessibles. */

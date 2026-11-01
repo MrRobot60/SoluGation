@@ -194,3 +194,71 @@ class SourcesReellesTests(TestCase):
         from apps.referentiels.importeurs.rgs import Rgs
 
         self.assertEqual(len(Rgs().lire(SOURCES / "rgs/2.0")), 155)
+
+
+MSS_MESURES = r"""// Commentaire de tête
+export type DetailReferentielMesureV2 = { description: string };
+
+export const mesuresV2: Record<string, DetailReferentielMesureV2> = {
+  'AUTH.2': {
+    description: 'Imposer l\'authentification multifacteur',
+    descriptionLongue: "Activer l'authentification <b>forte</b>.<br><br>Pour les comptes d&#39;administration.",
+    categorie: 'protection',
+    identifiantNumerique: '0042',
+    referentiel: 'ANSSI',
+  },
+  'RGPD.1': {
+    description:
+      "Tenir le registre des traitements",
+    descriptionLongue: 'Registre à jour.',
+    categorie: 'gouvernance',
+    identifiantNumerique: '0007',
+    referentiel: 'CNIL', /* origine */
+  },
+};
+
+export const questionsV2 = { autre: 'ignoré' };
+"""
+MSS_COMPLEMENTS = """export const donneesComplementairesMesureV2: DonneesComplementairesMesuresV2 = {
+  'AUTH.2': {
+    porteursSinguliers: ['RSSI', 'Administrateur technique',],
+    thematique: 'Gestion des identités et des accès',
+  },
+};
+"""
+
+
+class ImportMonServiceSecuriseTests(BaseImport):
+    def preparer(self, mesures=MSS_MESURES):
+        from apps.referentiels.importeurs.monservicesecurise import COMPLEMENTS, MESURES
+
+        dossier = self.dossier / "mss"
+        dossier.mkdir(exist_ok=True)
+        (dossier / MESURES).write_text(mesures, encoding="utf-8")
+        (dossier / COMPLEMENTS).write_text(MSS_COMPLEMENTS, encoding="utf-8")
+        return dossier
+
+    def test_lecture_sure_et_idempotence(self):
+        from apps.referentiels.importeurs.monservicesecurise import MonServiceSecurise
+
+        dossier = self.preparer()
+        r1 = MonServiceSecurise(fichier=dossier).importer()
+        r2 = MonServiceSecurise(fichier=dossier).importer()
+        self.assertEqual((r1.crees, r2.crees, r2.mis_a_jour), (2, 0, 0))
+        self.assertEqual(r1.referentiel.licence, "apache_2")
+        rgpd, auth = r1.referentiel.mesures.order_by("ordre")  # tri par identifiant numérique
+        self.assertEqual((rgpd.identifiant, rgpd.categorie), ("RGPD.1", "Gouvernance"))
+        self.assertIn("CNIL", rgpd.texte_officiel)
+        self.assertEqual(auth.intitule, "Imposer l'authentification multifacteur")
+        self.assertEqual(auth.categorie, "Gestion des identités et des accès")
+        self.assertEqual(auth.texte_officiel, "Activer l'authentification forte.\n\nPour les comptes d'administration.\n\n"
+                                              "Porteurs suggérés : RSSI, Administrateur technique.")
+
+    def test_construction_executable_refusee(self):
+        from apps.referentiels.importeurs.monservicesecurise import MonServiceSecurise
+
+        for piege in ("description: require('fs')", "description: `${process.env.SECRET}`", "description: 1 + 1"):
+            dossier = self.preparer(MSS_MESURES.replace("description: 'Imposer l\\'authentification multifacteur'", piege))
+            with self.assertRaises(ErreurImport):
+                MonServiceSecurise(fichier=dossier).importer()
+        self.assertFalse(Referentiel.objects.filter(code="monservicesecurise").exists())

@@ -9,9 +9,16 @@
 | `hygiene-anssi` | Guide d'hygiène informatique (ANSSI) | 2.0 | Licence Ouverte | Téléchargement automatique |
 | `ii901` | II 901 (protection des systèmes d'information sensibles) | 2015 | Libre | Fichier à déposer |
 | `rgs` | Référentiel général de sécurité | 2.0 | Libre | Fichiers à déposer |
+| `monservicesecurise` | Référentiel de mesures de MonServiceSécurisé (ANSSI) | V2 (commit figé) | Apache 2.0 | Téléchargement automatique |
 | `iso27001` | ISO/IEC 27001:2022, Annexe A | 2022 | **Propriétaire** | Copie licenciée de l'organisation |
 
 Chaque import enregistre la source, la version, la date et l'**empreinte SHA-256** du fichier source (visibles dans la Bibliothèque).
+
+### MonServiceSécurisé
+
+Le référentiel de mesures du service d'homologation de l'ANSSI pour les services publics en ligne : 135 mesures (dont quelques recommandations de la CNIL) en 6 thématiques (gouvernance et gestion des risques, écosystème, sécurité applicative et données, identités et accès, surveillance et incidents, systèmes et réseaux). Chaque mesure indique les **porteurs suggérés** (chef de projet, RSSI, administrateur technique, DPO…).
+
+Source : dépôt public [betagouv/mon-service-securise](https://github.com/betagouv/mon-service-securise), licence Apache 2.0, **figé sur un commit** précis pour que l'import soit reproductible (indiqué dans la version). Les fichiers source sont du TypeScript : SoluGation ne les exécute jamais, il en lit seulement les données avec un analyseur restreint qui refuse toute autre construction. Pour suivre une évolution du référentiel, un développeur met à jour le commit dans `backend/apps/referentiels/importeurs/monservicesecurise.py` : l'import crée alors une nouvelle version, et l'ancienne est signalée comme remplacée.
 
 ## Importer
 
