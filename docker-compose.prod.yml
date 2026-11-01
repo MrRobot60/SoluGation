@@ -5,13 +5,14 @@ name: solugation-prod
 x-application: &application
   build: ./backend
   image: solugation-backend:prod
-  env_file: .env.production
+  env_file: ${SOLUGATION_FICHIER_ENV:-.env.production}
   environment:
     DJANGO_DEBUG: "False"
     # Construite ici : le mot de passe n'est saisi qu'une fois (POSTGRES_PASSWORD).
     DATABASE_URL: postgres://${POSTGRES_USER:-solugation}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-solugation}
     IA_EXECUTION: taches
     SOLUGATION_PROXY_DE_CONFIANCE: "True"
+    SOLUGATION_NB_PROXYS: ${SOLUGATION_NB_PROXYS:-1}
     SOLUGATION_DATA_DIR: /data
   volumes:
     - ./data:/data
@@ -30,13 +31,17 @@ services:
     environment:
       SOLUGATION_DOMAINE: ${SOLUGATION_DOMAINE:?SOLUGATION_DOMAINE manquant dans .env.production}
       SOLUGATION_ENVOI_MAX_MO: ${SOLUGATION_ENVOI_MAX_MO:-60}
+      SOLUGATION_TLS: ${SOLUGATION_TLS:-auto}
+      SOLUGATION_PROXYS_AMONT: ${SOLUGATION_PROXYS_AMONT:-127.0.0.1/32}
     ports:
-      - "${SOLUGATION_PORT_HTTP:-80}:80"
-      - "${SOLUGATION_PORT_HTTPS:-443}:443"
-      - "${SOLUGATION_PORT_HTTPS:-443}:443/udp"
+      # SOLUGATION_ECOUTE : adresse d'écoute sur l'hôte (127.0.0.1 si seul un proxy local ou un tunnel y accède).
+      - "${SOLUGATION_ECOUTE:-0.0.0.0}:${SOLUGATION_PORT_HTTP:-80}:80"
+      - "${SOLUGATION_ECOUTE:-0.0.0.0}:${SOLUGATION_PORT_HTTPS:-443}:443"
+      - "${SOLUGATION_ECOUTE:-0.0.0.0}:${SOLUGATION_PORT_HTTPS:-443}:443/udp"
     volumes:
       - caddy_data:/data  # certificats TLS : à conserver
       - caddy_config:/config
+      - ./deploiement/certificats:/certificats:ro  # mode SOLUGATION_TLS=certificat
     depends_on:
       backend:
         condition: service_healthy
@@ -99,6 +104,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    restart: unless-stopped
+    logging: *journaux
+
+  # Essai rapide sans serveur ni nom de domaine : tunnel Cloudflare gratuit vers ce poste (scripts/essai-cloudflare.sh).
+  # Le chiffrement s'arrête chez Cloudflare : données fictives uniquement. Profil « tunnel-cloudflare ».
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.0
+    profiles: ["tunnel-cloudflare"]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://proxy:80"]
+    depends_on:
+      - proxy
     restart: unless-stopped
     logging: *journaux
 

@@ -22,6 +22,8 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 # Derrière le proxy de production uniquement : l'adresse du client est lue dans X-Forwarded-For.
 SOLUGATION_PROXY_DE_CONFIANCE = env.bool("SOLUGATION_PROXY_DE_CONFIANCE", default=False)
+# Nombre de proxys devant le serveur : 1 (Caddy seul), 2 (répartiteur de charge ou tunnel, puis Caddy).
+SOLUGATION_NB_PROXYS = env.int("SOLUGATION_NB_PROXYS", default=1)
 # Production : le nom de domaine public suffit, les listes s'en déduisent (surchargeables).
 SOLUGATION_DOMAINE = env("SOLUGATION_DOMAINE", default="")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS") or ([SOLUGATION_DOMAINE] if SOLUGATION_DOMAINE else [])
@@ -192,7 +194,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"connexion": "10/min", "mot_de_passe": "5/hour", "mot_de_passe_lien": "30/hour",
                                "changement_mot_de_passe": "10/hour", "double_auth": "10/min"},
-    "NUM_PROXIES": 1 if SOLUGATION_PROXY_DE_CONFIANCE else None,
+    "NUM_PROXIES": SOLUGATION_NB_PROXYS if SOLUGATION_PROXY_DE_CONFIANCE else None,
 }
 
 SPECTACULAR_SETTINGS = {

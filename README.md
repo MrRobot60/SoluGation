@@ -29,7 +29,9 @@ cp .env.production.example .env.production   # domaine, secrets, SMTP
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait
 ```
 
-Pas à pas : [Déployer en production](docs/15-production.md).
+Pas à pas : [Déployer en production](docs/15-production.md), y compris sur un serveur interne d'entreprise sans accès à Internet (certificat de l'organisation, derrière un répartiteur de charge).
+
+Pour simplement faire essayer l'outil, sans serveur ni nom de domaine : `scripts/essai-cloudflare.sh demarrer` (tunnel Cloudflare gratuit, données fictives uniquement).
 
 ## Documentation
 

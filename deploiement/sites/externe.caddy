@@ -1,0 +1,6 @@
+# HTTPS assuré en amont (répartiteur de charge, pare-feu applicatif, tunnel Cloudflare) : Caddy écoute en HTTP.
+# Indispensable : SOLUGATION_PROXYS_AMONT (adresses de ce proxy) et SOLUGATION_NB_PROXYS (voir docs/15-production.md),
+# sans quoi l'application ne sait ni que la connexion est chiffrée, ni qui est le client.
+:80 {
+	import solugation
+}

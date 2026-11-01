@@ -1,0 +1,4 @@
+# Let's Encrypt : le nom de domaine doit pointer vers ce serveur, ports 80 et 443 joignables depuis Internet.
+{$SOLUGATION_DOMAINE} {
+	import solugation
+}

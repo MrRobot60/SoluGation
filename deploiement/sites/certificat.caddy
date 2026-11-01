@@ -1,0 +1,5 @@
+# Certificat de votre organisation (autorité interne ou commerciale), chaîne complète au format PEM.
+{$SOLUGATION_DOMAINE} {
+	tls /certificats/solugation.crt /certificats/solugation.key
+	import solugation
+}

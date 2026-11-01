@@ -37,7 +37,9 @@ Cette page installe SoluGation sur un serveur accessible par vos utilisateurs, e
 | Mails | Un relais SMTP (celui de votre organisation ou d'un prestataire) |
 | Disque | **Chiffrement du disque** recommandé (données au repos), surtout avec le stockage intégré |
 
-> **Réseau interne sans accès Internet** : Let's Encrypt ne peut pas émettre de certificat. Fournissez le vôtre : voir [Certificat de votre organisation](#certificat-de-votre-organisation).
+> **Serveur interne d'entreprise, sans accès depuis Internet** : tout fonctionne, y compris la double authentification. Voir [Installation interne](#installation-interne-en-entreprise) (certificat de l'organisation, installation sans Internet).
+>
+> **Juste essayer, sans serveur ni nom de domaine** : voir [Essai rapide avec un tunnel Cloudflare](#essai-rapide-avec-un-tunnel-cloudflare).
 
 ## 2. Récupérer le code et configurer
 
@@ -217,19 +219,79 @@ S3_SSE=AES256
 
 Le service `stockage` n'est alors plus lancé. Le bucket est créé au démarrage (versioning activé), sinon créez-le dans la console de l'hébergeur, **privé**. Les sauvegardes fonctionnent à l'identique.
 
-### Certificat de votre organisation
+### Modes HTTPS
 
-Sur un réseau interne sans accès à Let's Encrypt, placez votre certificat et sa clé dans `deploiement/certificats/` (non versionné), puis dans `deploiement/Caddyfile` ajoutez sous `{$SOLUGATION_DOMAINE} {` :
+Choisis par `SOLUGATION_TLS` dans `.env.production`, sans modifier aucun fichier :
 
-```caddy
-	tls /certificats/solugation.crt /certificats/solugation.key
+| `SOLUGATION_TLS` | Pour qui | Ce qu'il faut |
+|---|---|---|
+| `auto` (défaut) | Serveur joignable depuis Internet | DNS vers le serveur, ports 80 et 443 ouverts : certificat Let's Encrypt automatique |
+| `certificat` | Réseau interne d'entreprise | Le certificat de votre organisation dans `deploiement/certificats/` : `solugation.crt` (certificat et chaîne, PEM) et `solugation.key` (clé privée). Ces fichiers ne sont jamais commités. |
+| `interne` | Laboratoire, réseau fermé sans PKI | Rien : Caddy crée sa propre autorité. Les navigateurs avertissent, sauf à installer sa racine sur les postes (volume `caddy_data`, `pki/authorities/local/root.crt`). |
+| `externe` | HTTPS assuré en amont : répartiteur de charge, pare-feu applicatif (WAF), tunnel | Voir ci-dessous |
+
+### Derrière un répartiteur de charge ou un pare-feu applicatif
+
+Le proxy de l'organisation termine le HTTPS et transmet en HTTP à Caddy :
+
+```dotenv
+SOLUGATION_TLS=externe
+SOLUGATION_PROXYS_AMONT=10.0.4.12/32   # adresse(s) du proxy amont, séparées par des espaces ; ou private_ranges
+SOLUGATION_NB_PROXYS=2                  # proxy amont + Caddy
+SOLUGATION_ECOUTE=10.0.4.20             # n'écouter que sur l'interface vue par le proxy amont
 ```
 
-et dans `docker-compose.prod.yml`, au service `proxy`, le volume `- ./deploiement/certificats:/certificats:ro`. Puis `sg up -d --build`.
+Le proxy amont doit envoyer `X-Forwarded-Proto: https` et ajouter l'adresse du client à `X-Forwarded-For` (comportement par défaut de HAProxy, nginx, F5, des répartiteurs cloud). **Vérifiez ensuite le journal d'audit** : l'adresse d'une connexion doit être celle du poste, pas celle du proxy. Une adresse de proxy amont mal renseignée a deux effets visibles : boucle de redirection vers HTTPS, ou adresse du proxy au journal.
 
-### Derrière un proxy existant
+### Installation interne en entreprise
 
-Si un proxy de l'organisation (répartiteur de charge, WAF) doit se placer devant Caddy, cette configuration n'est pas couverte par ce guide : l'adresse IP enregistrée au journal d'audit serait celle de ce proxy. Adaptez alors `deploiement/Caddyfile` (option `trusted_proxies`) et `backend/apps/core/middleware.py`, et vérifiez l'adresse enregistrée dans le journal.
+SoluGation ne dépend d'**aucun service extérieur** pour fonctionner :
+
+| Fonction | En réseau interne |
+|---|---|
+| Connexion, double authentification | Entièrement locale : codes calculés par le serveur, QR code généré par le serveur, applications de téléphone (Aegis, FreeOTP, Google ou Microsoft Authenticator…) qui fonctionnent **hors ligne**. Seule exigence : l'**heure du serveur synchronisée** (NTP interne) ; ±30 s sont tolérées. |
+| Polices, scripts, interface | Servis par l'installation (aucun appel à un CDN) |
+| Mails | Relais SMTP interne (`EMAIL_HOST`) ; sans relais, tout fonctionne sauf les mails (créer alors les comptes avec `creer_utilisateur`) |
+| Stockage | Stockage intégré, ou S3 interne (MinIO, Ceph, NetApp StorageGRID…) |
+| Certificat | `SOLUGATION_TLS=certificat` avec celui de votre PKI |
+| IA | Facultative ; un modèle interne (Ollama, vLLM) avec `IA_AUTORISER_RESEAU_LOCAL=True` |
+| Référentiels | NIST, OWASP et ANSSI se téléchargent depuis leur site : sans Internet, déposez les fichiers et passez `--fichier` (voir [référentiels](08-referentiels.md)) |
+
+**Serveur sans accès à Internet** : construisez les images sur un poste connecté, puis transférez-les :
+
+```bash
+# Poste connecté
+docker compose -f docker-compose.prod.yml --env-file .env.production build
+docker save solugation-backend:prod solugation-interface:prod postgres:17-alpine chrislusf/seaweedfs:4.48 | gzip > solugation-images.tar.gz
+# Serveur interne (avec le dépôt et .env.production)
+gunzip -c solugation-images.tar.gz | docker load
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --wait
+```
+
+Ou poussez ces images dans le registre interne de l'entreprise (Harbor, Nexus, GitLab…).
+
+### Essai rapide avec un tunnel Cloudflare
+
+Pour faire essayer SoluGation à quelques personnes **sans serveur ni nom de domaine** : la configuration de production tourne sur votre poste, et un tunnel Cloudflare gratuit (sans compte) lui donne une adresse publique en HTTPS.
+
+```bash
+scripts/essai-cloudflare.sh demarrer
+```
+
+Le script crée `.env.essai` (secrets générés, jamais commité), construit et démarre la pile, ouvre le tunnel et affiche l'adresse (`https://…trycloudflare.com`) ainsi que les commandes pour importer les référentiels et créer l'organisation. Les données de l'essai sont à part (projet Docker `solugation-essai`) : elles ne touchent ni au développement ni à une vraie installation.
+
+| Commande | Effet |
+|---|---|
+| `scripts/essai-cloudflare.sh adresse` | Réaffiche l'adresse publique |
+| `scripts/essai-cloudflare.sh arreter` | Arrête (les données restent) |
+| `scripts/essai-cloudflare.sh effacer` | Supprime toutes les données de l'essai |
+
+À savoir :
+
+- **Données fictives uniquement** : le chiffrement s'arrête chez Cloudflare, qui voit passer les échanges.
+- L'adresse change à **chaque démarrage** du tunnel (relancez `demarrer`, qui met la configuration à jour) ; l'appli n'est joignable que tant que votre poste est allumé.
+- Pas de serveur de mails : créez les comptes des collègues avec `creer_utilisateur` et transmettez-leur le mot de passe par un autre canal.
+- Rien n'est ouvert sur votre réseau local : le proxy n'écoute que sur `127.0.0.1`.
 
 ### Essai local de la configuration de production
 

@@ -36,6 +36,9 @@ curl -s http://localhost:8000/api/sante/  # répond {"statut": "ok", …} si l'A
 | Analyse IA « en attente » qui ne démarre pas | Service `taches` arrêté | `sg ps` ; `sg logs taches` ; `sg up -d taches` |
 | Analyse marquée « interrompue » | Service `taches` arrêté pendant l'analyse | Relancer l'analyse |
 | CSRF refusé à la connexion | Adresse d'accès différente du domaine (port, autre nom) | Accéder par `https://<SOLUGATION_DOMAINE>`, ou compléter `DJANGO_CSRF_TRUSTED_ORIGINS` |
+| Boucle de redirection, ou CSRF refusé, en mode `SOLUGATION_TLS=externe` | Le proxy amont n'est pas reconnu : renseigner `SOLUGATION_PROXYS_AMONT` (son adresse) et vérifier qu'il envoie `X-Forwarded-Proto: https` |
+| Journal d'audit : l'adresse du proxy au lieu de celle du poste | `SOLUGATION_NB_PROXYS` trop petit (2 avec un proxy amont), ou proxy amont qui n'ajoute pas l'adresse du client à `X-Forwarded-For` |
+| Essai Cloudflare : l'adresse ne répond plus | Le tunnel a redémarré et changé d'adresse : `scripts/essai-cloudflare.sh demarrer` (met la configuration à jour) |
 | `restaurer.sh` : « Empreintes invalides » | Sauvegarde modifiée ou incomplète | Ne pas forcer : prendre la sauvegarde précédente |
 
 ## Comptes et connexion

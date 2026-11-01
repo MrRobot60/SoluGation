@@ -9,6 +9,10 @@ data/private/
 # Sources téléchargées par les scripts d'import (reproductibles, non versionnées)
 data/sources/
 
+# Certificats et clés de l'organisation (mode SOLUGATION_TLS=certificat)
+deploiement/certificats/*
+!deploiement/certificats/LISEZMOI.md
+
 # Sauvegardes de production (contiennent toutes les données)
 sauvegardes/
 

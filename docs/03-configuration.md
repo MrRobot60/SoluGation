@@ -84,6 +84,11 @@ Fichier `.env.production` (modèle : `.env.production.example`), lu par `docker-
 | `SOLUGATION_ENVOI_MAX_MO` | `60` | Taille maximale d'une requête acceptée par le proxy (un peu plus que `UPLOAD_MAX_MO`). |
 | `GUNICORN_WORKERS` | `3` | Processus du serveur web. |
 | `SOLUGATION_PORT_HTTP`, `SOLUGATION_PORT_HTTPS` | `80`, `443` | Ports publiés (à changer seulement pour un essai local). |
+| `SOLUGATION_TLS` | `auto` (défaut), `certificat`, `interne`, `externe` | Mode HTTPS : voir [modes HTTPS](15-production.md#modes-https). |
+| `SOLUGATION_PROXYS_AMONT` | `10.0.4.12/32` ou `private_ranges` | Mode `externe` : adresses du proxy amont dont Caddy accepte les en-têtes `X-Forwarded-*`. Par défaut : aucun. |
+| `SOLUGATION_NB_PROXYS` | `1` (Caddy seul), `2` (proxy amont + Caddy) | Nombre de proxys devant le serveur, pour retrouver l'adresse réelle du client dans `X-Forwarded-For`. |
+| `SOLUGATION_ECOUTE` | `0.0.0.0` (défaut), `127.0.0.1`, une adresse de l'hôte | Interface sur laquelle le proxy écoute. |
+| `SOLUGATION_FICHIER_ENV` | `.env.production` (défaut) | Fichier de configuration lu par les services (l'essai Cloudflare utilise `.env.essai`). |
 | `SOLUGATION_PROXY_DE_CONFIANCE` | `True` (fixé par Compose) | L'adresse du client est lue dans `X-Forwarded-For`, posé par Caddy. **Jamais** sans proxy devant : l'en-tête serait falsifiable. |
 | `SAUVEGARDE_JOURS` | `14` | Variable du shell pour `scripts/sauvegarder.sh` : durée de conservation des sauvegardes locales. |
 

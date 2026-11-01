@@ -1,15 +1,23 @@
-# Proxy de production SoluGation : HTTPS automatique (Let's Encrypt, ou autorité interne pour « localhost »),
-# interface compilée, et /api, /admin, /static transmis au serveur Django.
+# Proxy de production SoluGation : interface compilée, et /api, /admin, /static transmis au serveur Django.
+# Le mode HTTPS se choisit par SOLUGATION_TLS (fichiers deploiement/sites/) :
+#   auto        certificat Let's Encrypt obtenu et renouvelé automatiquement (serveur joignable depuis Internet) ;
+#   certificat  certificat de votre organisation (deploiement/certificats/solugation.crt et .key) ;
+#   interne     autorité de certification propre à Caddy (laboratoire, réseau fermé, essai local) ;
+#   externe     HTTPS assuré en amont (répartiteur de charge, pare-feu applicatif, tunnel Cloudflare) : Caddy en HTTP.
 {
 	admin off
+	servers {
+		# Proxys amont dont on accepte X-Forwarded-For / X-Forwarded-Proto (mode externe) ; personne par défaut.
+		trusted_proxies static {$SOLUGATION_PROXYS_AMONT:127.0.0.1/32}
+	}
 }
 
-{$SOLUGATION_DOMAINE} {
+(solugation) {
 	encode zstd gzip
 
 	# Taille maximale d'un envoi : celle de l'application (UPLOAD_MAX_MO) + marge pour l'enveloppe multipart.
 	request_body {
-		max_size {$SOLUGATION_ENVOI_MAX_MO}MB
+		max_size {$SOLUGATION_ENVOI_MAX_MO:60}MB
 	}
 
 	header {
@@ -22,7 +30,7 @@
 
 	@django path /api/* /admin /admin/* /static/*
 	handle @django {
-		# Caddy remplace X-Forwarded-For par l'adresse réelle du client (lue par le journal d'audit).
+		# X-Forwarded-For : adresse réelle du client (journal d'audit), complétée par Caddy.
 		reverse_proxy backend:8000
 	}
 
@@ -43,3 +51,5 @@
 		format console
 	}
 }
+
+import sites/{$SOLUGATION_TLS:auto}.caddy

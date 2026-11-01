@@ -10,8 +10,9 @@ class AdresseClientMiddleware:
 
     def __call__(self, request):
         if settings.SOLUGATION_PROXY_DE_CONFIANCE:
-            # Le proxy (Caddy) remplace l'en-tête reçu par l'adresse du client : la dernière entrée est la sienne.
-            transmis = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[-1].strip()
-            if transmis:
-                request.META["REMOTE_ADDR"] = transmis
+            # Chaque proxy de confiance ajoute l'adresse de qui lui parle : avec N proxys, le client est la N-ième entrée
+            # en partant de la fin. Ce qui précède a pu être écrit par le client lui-même : jamais lu.
+            entrees = [e.strip() for e in request.META.get("HTTP_X_FORWARDED_FOR", "").split(",") if e.strip()]
+            if entrees:
+                request.META["REMOTE_ADDR"] = entrees[-min(settings.SOLUGATION_NB_PROXYS, len(entrees))]
         return self.get_response(request)

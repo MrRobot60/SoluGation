@@ -1,0 +1,6 @@
+# Autorité de certification propre à Caddy : les navigateurs affichent un avertissement, sauf à installer sa racine
+# (volume caddy_data, pki/authorities/local/root.crt) sur les postes.
+{$SOLUGATION_DOMAINE} {
+	tls internal
+	import solugation
+}

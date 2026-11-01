@@ -41,7 +41,12 @@ class AdresseClientTests(SimpleTestCase):
     def test_sans_proxy_l_en_tete_est_ignore(self):
         self.assertEqual(self.adresse(HTTP_X_FORWARDED_FOR="6.6.6.6"), "172.18.0.2")
 
-    @override_settings(SOLUGATION_PROXY_DE_CONFIANCE=True)
+    @override_settings(SOLUGATION_PROXY_DE_CONFIANCE=True, SOLUGATION_NB_PROXYS=2)
+    def test_derriere_deux_proxys(self):
+        # Le client a tenté d'usurper une adresse ; le tunnel puis Caddy ont ajouté les leurs.
+        self.assertEqual(self.adresse(HTTP_X_FORWARDED_FOR="6.6.6.6, 203.0.113.7, 172.18.0.9"), "203.0.113.7")
+
+    @override_settings(SOLUGATION_PROXY_DE_CONFIANCE=True, SOLUGATION_NB_PROXYS=1)
     def test_derriere_le_proxy(self):
         self.assertEqual(self.adresse(HTTP_X_FORWARDED_FOR="6.6.6.6, 203.0.113.7"), "203.0.113.7")
         self.assertEqual(self.adresse(), "172.18.0.2")
