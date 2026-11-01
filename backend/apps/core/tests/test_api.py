@@ -449,6 +449,22 @@ class AssistantCreationApiTests(BaseApi):
         self.assertEqual(r.status_code, 400)
         self.assertFalse(Projet.objects.filter(nom="Intranet").exists())
 
+    def test_checklist_reliee_a_monservicesecurise(self):
+        from apps.projets.checklist import CATALOGUE
+
+        mss = f.referentiel("monservicesecurise")
+        for ident in sorted({i for m in CATALOGUE for i in m.mesures.get("monservicesecurise", ())}):
+            Mesure.objects.create(referentiel=mss, identifiant=ident, intitule=ident)
+        r = self.api_a.post("/api/projets/", self.donnees(referentiels=[str(mss.id)], ebios_active=False), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        attendus = DocumentAttendu.objects.filter(projet_id=r.data["id"])
+        risques = attendus.get(intitule="Analyse de risques")
+        self.assertEqual(sorted(risques.mesures.values_list("identifiant", flat=True)), ["RISQUE.1", "RISQUE.2"])
+        archi = attendus.get(intitule="Dossier d'architecture technique")
+        self.assertIn("CARTO.2", archi.mesures.values_list("identifiant", flat=True))
+        sans = [d.intitule for d in attendus if not d.mesures.exists()]
+        self.assertEqual(sans, ["Décision d'homologation signée"])  # MonServiceSécurisé n'a pas de mesure sur la décision
+
     def test_sans_checklist_par_defaut(self):
         donnees = self.donnees()
         del donnees["generer_checklist"]
