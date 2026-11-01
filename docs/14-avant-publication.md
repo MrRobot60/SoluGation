@@ -1,6 +1,6 @@
 # Avant publication : feuille de route
 
-État au 27/10/2026 (mis à jour après la mise en place de la production). Ce qui manque avant de rendre SoluGation disponible publiquement, par priorité.
+État au 02/11/2026. Ce qui manque avant de rendre SoluGation disponible publiquement, par priorité.
 
 ## Bloquant
 
@@ -9,7 +9,7 @@
 | Licence | Aucune licence = personne n'a le droit d'utiliser le code | Choisir (recommandé : AGPL-3.0 + licence commerciale + CLA) et ajouter `LICENSE` |
 | Fichiers du dépôt | Attendus de tout projet open source | `SECURITY.md` (contact de signalement), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, modèles de tickets |
 | Historique Git | Un secret commité par erreur reste dans l'historique ; l'email d'auteur devient public | Scan `gitleaks` de tout l'historique ; choisir l'email d'auteur ; vérifier qu'aucun texte ISO ni PDF source n'a été commité |
-| Sources des référentiels | Certaines licences imposent attribution ou partage à l'identique (OWASP ASVS en CC BY-SA) | Vérifier chaque licence, citer les sources, ne pas redistribuer les PDF déposés à la main |
+| Sources des référentiels | Certaines licences imposent attribution ou partage à l'identique (OWASP ASVS en CC BY-SA) | Citer les sources dans l'appli et le dépôt, ne pas redistribuer les PDF déposés à la main. Vérifié : guide d'hygiène ANSSI (Licence Ouverte Etalab V1, mention en dernière page du PDF), NIST (domaine public, CC0 hors États-Unis). |
 
 ## Fortement recommandé
 
@@ -51,6 +51,20 @@
 | Gestion des comptes : invitation par mail, rôle, désactivation, mot de passe oublié | [Guide, comptes](06-guide-utilisateur.md#comptes) |
 | Écran « Mon compte » : profil, changement de mot de passe, déconnexion sur mobile | [Guide, mon compte](06-guide-utilisateur.md#mon-compte) |
 | Double authentification (TOTP, codes de secours), politique au choix de l'installateur ; limites de tentatives partagées entre processus | [Guide](06-guide-utilisateur.md#double-authentification), [configuration](03-configuration.md#sécurité-des-comptes) |
+
+## Référentiels libres candidats (licences vérifiées le 02/11/2026)
+
+| Référentiel | Licence | Intégrable |
+|---|---|---|
+| Mesures de MonServiceSécurisé (ANSSI, homologation des services publics en ligne) | Apache-2.0 (dépôt `betagouv/mon-service-securise`) | Oui, en citant la source |
+| NIST SP 800-53 r5 (+ bases 800-53B), format OSCAL | Domaine public / CC0 | Oui |
+| Règlement d'exécution (UE) 2024/2690 (mesures NIS2), DORA, RGPD art. 32 | Textes officiels de l'UE, réutilisables | Oui, en citant EUR-Lex |
+| OWASP MASVS (applications mobiles) | CC BY-SA, comme l'ASVS | Oui, avec attribution et partage à l'identique |
+| Guide CNIL de la sécurité des données personnelles (2024) | CC BY-ND d'après la page « Informations publiques » de la CNIL | Oui sans modifier les intitulés ; à confirmer sur le guide |
+| SecNumCloud 3.2 | Document public, licence non trouvée (téléchargement automatique refusé) | À vérifier sur le PDF |
+| BSI IT-Grundschutz | Catalogue Grundschutz++ en CC BY-SA d'après une source tierce ; Kompendium sous accord de licence | À vérifier auprès du BSI |
+| CIS Controls v8.1 | CC BY-NC-ND, usage commercial soumis à accord du CIS | Non (version commerciale) |
+| PCI DSS, SOC 2, ISO 2700x | Propriétaires | Non : copie licenciée du client uniquement |
 
 ## Juridique
 
