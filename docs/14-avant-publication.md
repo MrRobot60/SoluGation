@@ -6,9 +6,8 @@
 
 | Sujet | Pourquoi | À faire |
 |---|---|---|
-| Licence | Aucune licence = personne n'a le droit d'utiliser le code | Choisir (recommandé : AGPL-3.0 + licence commerciale + CLA) et ajouter `LICENSE` |
-| Fichiers du dépôt | Attendus de tout projet open source | `SECURITY.md` (contact de signalement), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, modèles de tickets |
-| Historique Git | Un secret commité par erreur reste dans l'historique ; l'email d'auteur devient public | Scan `gitleaks` de tout l'historique ; choisir l'email d'auteur ; vérifier qu'aucun texte ISO ni PDF source n'a été commité |
+| Historique Git | Un secret commité par erreur reste dans l'historique ; l'email d'auteur devient public (aujourd'hui : l'adresse locale du Mac) | Scan `gitleaks` de tout l'historique ; réécrire l'auteur des commits avec l'adresse choisie ; vérifier qu'aucun texte ISO ni PDF source n'a été commité |
+| Dépôt public | Adresse encore inconnue | Créer le dépôt, renseigner `SOLUGATION_URL_CODE_SOURCE` par défaut, ajouter le lien de signalement de faille aux modèles de tickets |
 | Sources des référentiels | Certaines licences imposent attribution ou partage à l'identique (OWASP ASVS en CC BY-SA) | Citer les sources dans l'appli et le dépôt, ne pas redistribuer les PDF déposés à la main. Vérifié : guide d'hygiène ANSSI (Licence Ouverte Etalab V1, mention en dernière page du PDF), NIST (domaine public, CC0 hors États-Unis). |
 
 ## Fortement recommandé
@@ -50,6 +49,7 @@
 | Aucune ressource tierce (police embarquée), CSP stricte | [Sécurité](10-securite.md) |
 | Gestion des comptes : invitation par mail, rôle, désactivation, mot de passe oublié | [Guide, comptes](06-guide-utilisateur.md#comptes) |
 | Écran « Mon compte » : profil, changement de mot de passe, déconnexion sur mobile | [Guide, mon compte](06-guide-utilisateur.md#mon-compte) |
+| Licence : AGPL-3.0 et licence commerciale, accord de contribution, `SECURITY.md`, `CONTRIBUTING.md`, `NOTICE`, modèles de tickets ; mention « logiciel libre » et lien vers le code source dans l'appli | `LICENSE`, `LICENCE-COMMERCIALE.md`, `CLA.md` à la racine du dépôt |
 | Double authentification (TOTP, codes de secours), politique au choix de l'installateur ; limites de tentatives partagées entre processus | [Guide](06-guide-utilisateur.md#double-authentification), [configuration](03-configuration.md#sécurité-des-comptes) |
 
 ## Référentiels libres candidats (licences vérifiées le 02/11/2026)
@@ -72,4 +72,5 @@
 |---|---|
 | Marque « SoluGation » | Recherche d'antériorité (INPI, EUIPO), dépôt éventuel |
 | Mentions | Avertissement : aucune conclusion de l'outil ne vaut décision d'homologation |
+| Accord de contribution et licence commerciale | Relecture par un professionnel du droit avant la première contribution extérieure et le premier contrat |
 | Données personnelles | Registre de traitement type et notice pour les organisations qui installent l'outil |

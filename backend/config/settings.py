@@ -24,6 +24,9 @@ DEBUG = env("DJANGO_DEBUG")
 SOLUGATION_PROXY_DE_CONFIANCE = env.bool("SOLUGATION_PROXY_DE_CONFIANCE", default=False)
 # Nombre de proxys devant le serveur : 1 (Caddy seul), 2 (répartiteur de charge ou tunnel, puis Caddy).
 SOLUGATION_NB_PROXYS = env.int("SOLUGATION_NB_PROXYS", default=1)
+# Adresse du code source affichée aux utilisateurs (AGPL-3.0, art. 13) : celle du dépôt officiel, ou celle de votre
+# version si vous l'avez modifiée.
+SOLUGATION_URL_CODE_SOURCE = env("SOLUGATION_URL_CODE_SOURCE", default="")
 # Production : le nom de domaine public suffit, les listes s'en déduisent (surchargeables).
 SOLUGATION_DOMAINE = env("SOLUGATION_DOMAINE", default="")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS") or ([SOLUGATION_DOMAINE] if SOLUGATION_DOMAINE else [])

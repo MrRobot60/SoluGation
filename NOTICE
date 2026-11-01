@@ -1,0 +1,24 @@
+SoluGation
+Copyright (C) 2026 Les auteurs de SoluGation (solugation@mail.fr)
+Distribué sous GNU AGPL-3.0 (LICENSE) ou sous licence commerciale (LICENCE-COMMERCIALE.md).
+
+Référentiels
+------------
+Les textes des référentiels ne sont pas inclus dans ce dépôt : ils sont importés depuis leur source officielle par
+`manage.py importer_referentiel`, qui enregistre la source, la version et l'empreinte SHA-256 de chaque import.
+
+- MonServiceSécurisé, référentiel de mesures : ANSSI / beta.gouv.fr, https://github.com/betagouv/mon-service-securise,
+  licence Apache 2.0. Données lues sans modification de fond (balises HTML retirées, thématiques et porteurs regroupés).
+- Guide d'hygiène informatique : ANSSI, Licence Ouverte / Open Licence (Etalab V1).
+- Référentiel général de sécurité (RGS) v2.0 : ANSSI, texte officiel.
+- Instruction interministérielle n° 901 : texte officiel (Légifrance).
+- NIST Cybersecurity Framework 2.0 : National Institute of Standards and Technology, domaine public (États-Unis).
+- OWASP Application Security Verification Standard : OWASP Foundation, CC BY-SA 4.0.
+- ISO/IEC 27001:2022 : norme payante, jamais fournie. Chaque organisation importe sa propre copie licenciée.
+
+Composants tiers
+----------------
+Les dépendances (backend/requirements.txt, frontend/package.json) restent sous leur propre licence, notamment :
+Django et Django REST Framework (BSD), React (MIT), Tailwind CSS (MIT), WeasyPrint (BSD), pyotp (MIT), segno (BSD),
+marked (MIT), DOMPurify (Apache 2.0 / MPL 2.0), Caddy (Apache 2.0), PostgreSQL (licence PostgreSQL),
+SeaweedFS (Apache 2.0), police Inter (SIL Open Font License 1.1).

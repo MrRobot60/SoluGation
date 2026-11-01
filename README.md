@@ -54,4 +54,16 @@ Pour simplement faire essayer l'outil, sans serveur ni nom de domaine : `scripts
 
 ## Licence
 
-À définir avant la première publication (voir [la feuille de route](docs/14-avant-publication.md)).
+SoluGation est un logiciel libre, sous **double licence** :
+
+- [GNU AGPL-3.0](LICENSE) : libre et gratuit, y compris pour un usage commercial ; toute version modifiée, même seulement
+  proposée en ligne, doit publier son code source sous la même licence ;
+- [licence commerciale](LICENCE-COMMERCIALE.md) : pour une intégration sans les obligations de l'AGPL, ou avec support
+  et garanties contractuels. Contact : solugation@mail.fr.
+
+Sources des référentiels et composants tiers : [NOTICE](NOTICE).
+
+## Contribuer et signaler une faille
+
+- Contribuer : [CONTRIBUTING.md](CONTRIBUTING.md) (contributions acceptées sous l'[accord de contribution](CLA.md)).
+- Vulnérabilité : **pas de ticket public**, écrire à solugation@mail.fr ([SECURITY.md](SECURITY.md)).

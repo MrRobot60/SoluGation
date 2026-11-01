@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router";
 
 import { useConnexion, useConnexionCode, useMoi } from "../api/hooks";
 import { Logo } from "../composants/Disposition";
+import { MentionLicence } from "../composants/MentionLicence";
 
 const champ = "flex flex-col gap-0.5 px-4 pt-2.5 pb-2";
 
@@ -70,7 +71,7 @@ export function PageConnexion() {
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-10">
+    <main className="relative flex min-h-dvh items-center justify-center px-4 pt-10 pb-16">
       <div className="verre flex w-full max-w-[400px] flex-col gap-5 rounded-verre px-6 pt-8 pb-6 sm:px-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <Logo taille={64} decoratif />
@@ -103,6 +104,7 @@ export function PageConnexion() {
           </form>
         )}
       </div>
+      <MentionLicence className="absolute inset-x-4 bottom-4" />
     </main>
   );
 }

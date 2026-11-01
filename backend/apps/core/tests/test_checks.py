@@ -1,6 +1,6 @@
 """Contrôles de production : une valeur d'exemple bloque le démarrage."""
 
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.core.checks import configuration_production
 
@@ -50,3 +50,12 @@ class AdresseClientTests(SimpleTestCase):
     def test_derriere_le_proxy(self):
         self.assertEqual(self.adresse(HTTP_X_FORWARDED_FOR="6.6.6.6, 203.0.113.7"), "203.0.113.7")
         self.assertEqual(self.adresse(), "172.18.0.2")
+
+
+class AProposTests(TestCase):
+    @override_settings(SOLUGATION_URL_CODE_SOURCE="https://exemple.org/solugation", ALLOWED_HOSTS=["testserver"])
+    def test_licence_et_code_source_publics(self):
+        r = self.client.get("/api/a-propos/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["code_source"], "https://exemple.org/solugation")
+        self.assertIn("AGPL", r.json()["licence"])

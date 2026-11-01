@@ -117,6 +117,15 @@ export function useDeconnexion() {
   });
 }
 
+/** Licence et adresse du code source (publiques, AGPL-3.0 art. 13). */
+export function useAPropos() {
+  return useQuery({
+    queryKey: ["a-propos"],
+    queryFn: () => api<{ licence_libelle: string; code_source: string }>("/api/a-propos/"),
+    staleTime: Infinity,
+  });
+}
+
 export function useModifierProfil() {
   const client = useQueryClient();
   return useMutation({

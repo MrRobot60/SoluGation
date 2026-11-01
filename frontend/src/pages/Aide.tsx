@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useVisite } from "../api/hooks";
 import { Disposition } from "../composants/Disposition";
 import { IconeRecherche } from "../composants/Icones";
+import { MentionLicence } from "../composants/MentionLicence";
 import { oublierVisite } from "../composants/VisiteGuidee";
 import { page as trouverPage, PAGES, rechercher, rendre } from "../lib/docs";
 
@@ -59,6 +60,7 @@ function Sommaire() {
           </li>
         ))}
       </ul>
+      <MentionLicence className="pt-2" />
     </div>
   );
 }

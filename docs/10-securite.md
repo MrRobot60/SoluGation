@@ -54,4 +54,4 @@ Pièces validées, conclusions IA statuées, risques acceptés, dérogations dé
 
 ## Signaler une vulnérabilité
 
-Merci de ne pas ouvrir de ticket public : écrivez à l'adresse de contact sécurité du projet (à définir dans `SECURITY.md` avant publication).
+Merci de ne pas ouvrir de ticket public : écrivez à **solugation@mail.fr**. Engagements et règles : `SECURITY.md` à la racine du dépôt (accusé de réception sous 5 jours ouvrés, publication coordonnée au plus tard 90 jours après le signalement).
