@@ -1,6 +1,6 @@
 # Avant publication : feuille de route
 
-État au 02/11/2026. Ce qui manque avant de rendre SoluGation disponible publiquement, par priorité.
+État au 02/11/2026 : publié sur https://github.com/MrRobot60/SoluGation. Ce qui manque avant de rendre SoluGation disponible publiquement, par priorité.
 
 ## Bloquant
 
@@ -48,6 +48,7 @@
 | Aucune ressource tierce (police embarquée), CSP stricte | [Sécurité](10-securite.md) |
 | Gestion des comptes : invitation par mail, rôle, désactivation, mot de passe oublié | [Guide, comptes](06-guide-utilisateur.md#comptes) |
 | Écran « Mon compte » : profil, changement de mot de passe, déconnexion sur mobile | [Guide, mon compte](06-guide-utilisateur.md#mon-compte) |
+| Publication du dépôt public, historique contrôlé (aucun secret, aucune donnée personnelle, aucun texte de norme payante) | https://github.com/MrRobot60/SoluGation |
 | Licence : AGPL-3.0 et licence commerciale, accord de contribution, `SECURITY.md`, `CONTRIBUTING.md`, `NOTICE`, modèles de tickets ; mention « logiciel libre » et lien vers le code source dans l'appli | `LICENSE`, `LICENCE-COMMERCIALE.md`, `CLA.md` à la racine du dépôt |
 | Double authentification (TOTP, codes de secours), politique au choix de l'installateur ; limites de tentatives partagées entre processus | [Guide](06-guide-utilisateur.md#double-authentification), [configuration](03-configuration.md#sécurité-des-comptes) |
 
