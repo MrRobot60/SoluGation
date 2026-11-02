@@ -1,0 +1,9 @@
+# Recherche de secrets (gitleaks) : règles par défaut, en ignorant les valeurs d'exemple des fichiers de configuration.
+title = "SoluGation"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valeurs d'exemple « a-remplacer » des fichiers .env.*.example"
+regexes = ['''a-remplacer''']
