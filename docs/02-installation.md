@@ -29,7 +29,7 @@ Installez Docker Engine et le greffon Compose depuis les dépôts officiels de D
 ## 2. Récupérer le code et préparer `.env`
 
 ```bash
-git clone <adresse-du-dépôt> solugation
+git clone https://github.com/MrRobot60/SoluGation.git solugation
 cd solugation
 cp .env.example .env
 ```

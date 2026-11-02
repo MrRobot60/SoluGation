@@ -7,7 +7,6 @@
 | Sujet | Pourquoi | À faire |
 |---|---|---|
 | Historique Git | Un secret commité par erreur reste dans l'historique ; l'email d'auteur devient public (aujourd'hui : l'adresse locale du Mac) | Scan `gitleaks` de tout l'historique ; réécrire l'auteur des commits avec l'adresse choisie ; vérifier qu'aucun texte ISO ni PDF source n'a été commité |
-| Dépôt public | Adresse encore inconnue | Créer le dépôt, renseigner `SOLUGATION_URL_CODE_SOURCE` par défaut, ajouter le lien de signalement de faille aux modèles de tickets |
 | Sources des référentiels | Certaines licences imposent attribution ou partage à l'identique (OWASP ASVS en CC BY-SA) | Citer les sources dans l'appli et le dépôt, ne pas redistribuer les PDF déposés à la main. Vérifié : guide d'hygiène ANSSI (Licence Ouverte Etalab V1, mention en dernière page du PDF), NIST (domaine public, CC0 hors États-Unis). |
 
 ## Fortement recommandé

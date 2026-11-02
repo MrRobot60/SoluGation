@@ -9,7 +9,7 @@ SoluGation s'installe chez soi ou dans son système d'information (auto-héberge
 ## Démarrage rapide (poste de développement ou d'évaluation)
 
 ```bash
-git clone <adresse-du-dépôt> solugation && cd solugation
+git clone https://github.com/MrRobot60/SoluGation.git solugation && cd solugation
 cp .env.example .env        # puis remplacer toutes les valeurs « a-remplacer »
 docker compose up -d        # base, stockage, mails de test, serveur, interface
 docker compose exec backend python manage.py importer_referentiel libres

@@ -45,7 +45,7 @@ Cette page installe SoluGation sur un serveur accessible par vos utilisateurs, e
 
 ```bash
 sudo mkdir -p /opt/solugation && sudo chown "$USER" /opt/solugation
-git clone <adresse-du-dépôt> /opt/solugation
+git clone https://github.com/MrRobot60/SoluGation.git /opt/solugation
 cd /opt/solugation
 cp .env.production.example .env.production
 chmod 600 .env.production
