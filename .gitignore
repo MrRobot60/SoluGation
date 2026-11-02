@@ -1,3 +1,7 @@
+# Notes de travail et réglages d'outils locaux (jamais publiés)
+CLAUDE.md
+.claude/
+
 # Secrets
 .env
 .env.*
